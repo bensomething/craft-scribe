@@ -18,7 +18,9 @@ class Parser
      *   - "https://github.com/owner/repo"
      *   - a blob/tree URL ("https://github.com/owner/repo/blob/main/README.md")
      *   - a raw URL ("https://raw.githubusercontent.com/owner/repo/main/README.md")
-     * Returns null if nothing repo-shaped is found.
+     * Only the owner/repo is taken from a URL; any file path in it is ignored,
+     * since the field always fetches that repo's README. Returns null if nothing
+     * repo-shaped is found.
      */
     public function normalizeRepo(?string $source): ?string
     {

@@ -1,8 +1,11 @@
 # Scribe for Craft CMS
 
-Pull a GitHub README (or any Markdown file) into your content, sliced by heading, so your docs pages mirror a repo and stay in sync with a single source of truth.
+Pull a GitHub README into your content, sliced by heading, so your docs pages mirror a repo and stay in sync with a single source of truth.
 
 Scribe adds one field: pick a repository, then optionally choose a **Start From** and **End Before** heading to show just a section. In your templates, render it as HTML that matches your site.
+
+> [!NOTE]
+> **Scribe is in beta.** It's feature-complete and safe to try, but the API, settings, and stored-value formats may still change before 1.0.0. Please [report anything you hit](https://github.com/bensomething/craft-scribe/issues).
 
 ## Requirements
 
@@ -12,10 +15,12 @@ Scribe adds one field: pick a repository, then optionally choose a **Start From*
 
 ## Installation
 
-```sh
-composer require bensomething/craft-scribe
+```bash
+composer require bensomething/craft-scribe:^1.0.0-beta
 php craft plugin/install scribe
 ```
+
+The `-beta` in the constraint is what lets Composer install it under a project's default `stable` minimum stability.
 
 ## Setup
 
