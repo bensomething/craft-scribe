@@ -1,0 +1,58 @@
+{% import "_includes/forms.twig" as forms %}
+
+{# Repo menu options: a blank prompt, your repositories, and — when editing — a
+   saved value that isn't in the fetched list (e.g. beyond the first 100). #}
+{% set repoValues = repos|column('value') %}
+{% set repoOptions = [{ label: 'Select a repository…'|t('scribe'), value: '' }]|merge(repos) %}
+{% if value.url and value.url not in repoValues %}
+    {% set repoOptions = repoOptions|merge([{ label: value.url, value: value.url }]) %}
+{% endif %}
+
+{# Heading menu options: a blank default plus every heading in the source. #}
+{% set headingOptions = [{ label: '', value: '' }] %}
+{% for h in headings %}
+    {% set headingOptions = headingOptions|merge([{ label: h.label, value: h.value }]) %}
+{% endfor %}
+
+{% if not hasToken %}
+    <p class="warning">{{ 'Set a GitHub token in <a href="{url}">Scribe’s settings</a> to use this field.'|t('scribe', { url: cpUrl('settings/plugins/scribe') })|raw }}</p>
+    {# Preserve any saved values so editing + saving without a token doesn't wipe them. #}
+    <input type="hidden" name="{{ name }}[url]" value="{{ value.url }}">
+    <input type="hidden" name="{{ name }}[startFrom]" value="{{ value.startFrom }}">
+    <input type="hidden" name="{{ name }}[endBefore]" value="{{ value.endBefore }}">
+{% else %}
+<div class="scribe">
+<div class="scribe-field">
+    <div class="scribe-repo">
+        {{ forms.selectizeField({
+            label: 'Repository'|t('scribe'),
+            id: id ~ '-url',
+            name: name ~ '[url]',
+            options: repoOptions,
+            value: value.url,
+        }) }}
+    </div>
+
+    <div class="scribe-range{{ value.isEmpty ? ' hidden' }}" data-scribe-range>
+        <div class="scribe-col">
+            {{ forms.selectField({
+                label: 'Start From'|t('scribe'),
+                id: id ~ '-startFrom',
+                name: name ~ '[startFrom]',
+                options: headingOptions,
+                value: value.startFrom,
+            }) }}
+        </div>
+        <div class="scribe-col">
+            {{ forms.selectField({
+                label: 'End Before'|t('scribe'),
+                id: id ~ '-endBefore',
+                name: name ~ '[endBefore]',
+                options: headingOptions,
+                value: value.endBefore,
+            }) }}
+        </div>
+    </div>
+</div>
+</div>
+{% endif %}

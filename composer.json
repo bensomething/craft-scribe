@@ -1,0 +1,54 @@
+{
+    "name": "bensomething/craft-scribe",
+    "description": "A field that pulls a GitHub README into your content, sliced by heading.",
+    "type": "craft-plugin",
+    "license": "MIT",
+    "keywords": [
+        "craft",
+        "cms",
+        "craftcms",
+        "plugin",
+        "field",
+        "github",
+        "readme",
+        "markdown",
+        "docs"
+    ],
+    "support": {
+        "issues": "https://github.com/bensomething/craft-scribe/issues",
+        "source": "https://github.com/bensomething/craft-scribe"
+    },
+    "require": {
+        "php": "^8.2",
+        "craftcms/cms": "^5.10"
+    },
+    "require-dev": {
+        "craftcms/ecs": "dev-main",
+        "craftcms/phpstan": "dev-main"
+    },
+    "autoload": {
+        "psr-4": {
+            "bensomething\\scribe\\": "src/"
+        }
+    },
+    "extra": {
+        "handle": "scribe",
+        "name": "Scribe",
+        "developer": "Ben Smith",
+        "developerUrl": "https://bensomething.com",
+        "documentationUrl": "https://github.com/bensomething/craft-scribe",
+        "changelogUrl": "https://raw.githubusercontent.com/bensomething/craft-scribe/develop/CHANGELOG.md",
+        "class": "bensomething\\scribe\\Plugin"
+    },
+    "config": {
+        "allow-plugins": {
+            "yiisoft/yii2-composer": true,
+            "craftcms/plugin-installer": true
+        }
+    },
+    "scripts": {
+        "check-cs": "ecs check --ansi",
+        "fix-cs": "ecs check --ansi --fix",
+        "phpstan": "phpstan --memory-limit=1G"
+    }
+}

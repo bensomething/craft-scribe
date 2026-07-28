@@ -1,0 +1,99 @@
+/* Query the field's own width (not the viewport), so it responds correctly
+   inside slideouts. */
+.scribe {
+  container-type: inline-size;
+}
+
+.scribe-field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+/* One row: fixed repo, then Start From / End Before butted up against it. */
+.scribe-field > .scribe-repo {
+  flex: 0 0 13rem;
+}
+.scribe-field > .scribe-range {
+  display: flex;
+  gap: 1rem;
+}
+.scribe-field > .scribe-range > .scribe-col {
+  flex: 0 1 11rem;
+  min-width: 0;
+}
+
+/* Repo (selectize): fill its column and truncate long names. */
+.scribe-field .selectize-control {
+  width: 100%;
+}
+/* Pin a fixed height and keep contents on one centered line, so a selected
+   value can't grow the control past its empty height. */
+.scribe-field .selectize-input {
+  min-height: 34px;
+  height: 34px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+.scribe-field .selectize-input > .item {
+  /* Strip the chip look so a selected value is the same size as the focused
+     input — no jump, no growth. */
+  background: none;
+  padding: 0 !important;
+  font-size: 14px;
+  line-height: 20px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Native heading selects: fill their column, match the repo's 34px height, and
+   truncate long labels (chevron then sits at the edge). */
+.scribe-field > .scribe-range > .scribe-col .select,
+.scribe-field > .scribe-range > .scribe-col .select select {
+  width: 100%;
+}
+.scribe-field > .scribe-range > .scribe-col .select select {
+  height: 34px;
+  box-sizing: border-box;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Two rows: repo goes full width; Start From / End Before split 50/50 below it. */
+@container (max-width: 37rem) {
+  .scribe-field > .scribe-repo {
+    flex-basis: 100%;
+  }
+  .scribe-field > .scribe-range {
+    flex-basis: 100%;
+  }
+  .scribe-field > .scribe-range > .scribe-col {
+    flex: 1 1 0;
+  }
+}
+
+/* Three rows: stack Start From and End Before full width too. */
+@container (max-width: 20rem) {
+  .scribe-field > .scribe-range {
+    flex-direction: column;
+  }
+  .scribe-field > .scribe-range > .scribe-col {
+    flex: 1 1 auto;
+  }
+}
+
+/* No stray top margin on the inline fields; keep their labels on one line. */
+.scribe-field .field {
+  margin-top: 0;
+}
+.scribe-field .heading > label {
+  white-space: nowrap;
+}
