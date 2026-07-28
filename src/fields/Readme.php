@@ -8,8 +8,6 @@ use bensomething\scribe\web\assets\field\ScribeFieldAsset;
 use Craft;
 use craft\base\ElementInterface;
 use craft\base\Field;
-use craft\helpers\Cp;
-use craft\helpers\Html;
 use craft\helpers\Json;
 use yii\db\Schema;
 
