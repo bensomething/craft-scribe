@@ -17,6 +17,7 @@
 }
 .scribe-field > .scribe-range {
   display: flex;
+  align-items: flex-start;
   gap: 1rem;
 }
 /* Beat the display:flex above so .hidden actually hides the row. */
@@ -28,9 +29,11 @@
   min-width: 0;
 }
 
-/* Repo (selectize): fill its column and truncate long names. */
+/* Repo (selectize): fill its column and truncate long names. Pin the control
+   height too, so the chevron (positioned at 50% of it) doesn't shift on focus. */
 .scribe-field .selectize-control {
   width: 100%;
+  height: 34px;
 }
 /* Pin a fixed height and keep contents on one centered line, so a selected
    value can't grow the control past its empty height. */
@@ -57,15 +60,13 @@
   max-width: 100%;
 }
 
-/* Native heading selects: fill their column, match the repo's 34px height, and
-   truncate long labels (chevron then sits at the edge). */
+/* Native heading selects: fill their column and truncate long labels (chevron
+   then sits at the edge). Height is left to Craft's own .select sizing. */
 .scribe-field > .scribe-range > .scribe-col .select,
 .scribe-field > .scribe-range > .scribe-col .select select {
   width: 100%;
 }
 .scribe-field > .scribe-range > .scribe-col .select select {
-  height: 34px;
-  box-sizing: border-box;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

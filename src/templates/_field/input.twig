@@ -8,8 +8,10 @@
     {% set repoOptions = repoOptions|merge([{ label: value.url, value: value.url }]) %}
 {% endif %}
 
-{# Heading menu options: a blank default plus every heading in the source. #}
-{% set headingOptions = [{ label: '', value: '' }] %}
+{# Heading menu options: a blank default plus every heading in the source. The
+   blank label is a non-breaking space so an empty selection keeps the select's
+   line full height (an empty option collapses it and leaves a gap below). #}
+{% set headingOptions = [{ label: " ", value: '' }] %}
 {% for h in headings %}
     {% set headingOptions = headingOptions|merge([{ label: h.label, value: h.value }]) %}
 {% endfor %}

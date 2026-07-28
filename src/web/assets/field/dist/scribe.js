@@ -164,7 +164,9 @@
     },
 
     optionsHtml: function (headings) {
-      var html = '<option value=""></option>';
+      // Blank option carries a non-breaking space so an empty selection keeps
+      // the select's line full height, with no gap below it.
+      var html = '<option value="">' + String.fromCharCode(160) + '</option>';
       headings.forEach(function (h) {
         // Indent sub-headings (h3+) under their section with non-breaking spaces.
         var depth = Math.max(0, (h.level || 2) - 2);
