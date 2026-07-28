@@ -19,6 +19,9 @@ use yii\caching\TagDependency;
  *   - "https://github.com/owner/repo"
  *   - a blob/tree URL ("https://github.com/owner/repo/blob/main/README.md")
  *   - a raw URL ("https://raw.githubusercontent.com/owner/repo/main/README.md")
+ *
+ * Any of these resolves to "owner/repo". The repo's canonical README is
+ * fetched, so a URL pointing at a specific file still yields the README.
  */
 class Readme extends Component
 {
