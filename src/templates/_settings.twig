@@ -1,8 +1,12 @@
 {% import "_includes/forms.twig" as forms %}
 
+{% css %}
+#settings-token-field { margin-top: 0; }
+{% endcss %}
+
 {{ forms.autosuggestField({
     label: 'GitHub Token'|t('scribe'),
-    instructions: 'Required. A GitHub personal access token — the field lists this account’s repositories (public and private) and validates against it. Falls back to the `GITHUB_TOKEN` environment variable.'|t('scribe'),
+    instructions: 'A GitHub personal access token. The field lists this account’s repositories (public and private) and validates against it. Falls back to the `GITHUB_TOKEN` environment variable.'|t('scribe'),
     required: true,
     id: 'token',
     name: 'token',
@@ -21,11 +25,12 @@
     unit: 'seconds'|t('scribe'),
 }) }}
 
-{{ forms.textField({
+{{ forms.autosuggestField({
     label: 'Code Block Template'|t('scribe'),
     instructions: 'Optional site template used to render each code block, given `code` and `language`. Leave blank for a minimal `<pre><code>`.'|t('scribe'),
     id: 'codeBlockTemplate',
     name: 'codeBlockTemplate',
     value: settings.codeBlockTemplate,
+    suggestTemplates: true,
     placeholder: '_partials/code/remote',
 }) }}

@@ -11,7 +11,7 @@ use yii\caching\TagDependency;
 
 /**
  * Fetches a GitHub repo's README, renders it for display, and reports its
- * headings — the engine behind the Scribe field.
+ * headings. The engine behind the Scribe field.
  *
  * Accepts any of:
  *   - "owner/repo"
@@ -21,8 +21,7 @@ use yii\caching\TagDependency;
  */
 class Readme extends Component
 {
-    // Tag on every cached item so they can be flushed as a group (see the
-    // "GitHub READMEs" option registered in Utilities → Caches).
+    // Tag on every cached item so they can be flushed as a group.
     public const CACHE_TAG = 'scribe:github';
 
     /**
@@ -183,7 +182,7 @@ class Readme extends Component
             $data = $raw !== null
                 ? $this->transform($raw, $repo, $this->fetchDefaultBranch($repo))
                 : ['html' => '', 'cards' => []];
-            // Cache successes for the full duration; cache misses briefly so a
+            // Cache successes for the full duration. Cache misses briefly so a
             // transient failure or rate-limit doesn't hammer the API.
             $cache->set(
                 $cacheKey,
@@ -259,8 +258,7 @@ class Readme extends Component
 
     /**
      * Only the token account's own repositories (those in its repo list) may be
-     * fetched — needs just the Contents/Metadata read the token already grants,
-     * no user permission.
+     * fetched, needing just the Contents/Metadata read the token already grants.
      */
     private function repoAllowed(string $repo): bool
     {
@@ -320,7 +318,7 @@ class Readme extends Component
             . " | //pre[not(ancestor::div[{$isCodeWrap}])]"
         );
 
-        // Snapshot the node list first — replacing nodes mutates the live list.
+        // Snapshot the node list first, since replacing nodes mutates the live list.
         $nodes = [];
         foreach ($blocks as $node) {
             $nodes[] = $node;
@@ -515,9 +513,9 @@ class Readme extends Component
 
     /**
      * Find the heading anchor for a slug. GitHub gives each heading a permalink
-     * <a id="user-content-slug">. Match that id specifically — NOT arbitrary
+     * <a id="user-content-slug">. Match that id specifically, NOT arbitrary
      * <a href="#slug">, which also matches inline cross-reference links and
-     * would move a slice boundary to the wrong (earlier) place.
+     * would move a slice boundary to the wrong, earlier place.
      */
     private function findAnchorNode(\DOMXPath $xpath, string $anchor): ?\DOMNode
     {
@@ -544,7 +542,7 @@ class Readme extends Component
 
     /**
      * The top-level flow block (child of the markdown-body container) that holds
-     * the given node — the correct slice boundary, not the inner heading.
+     * the given node, the correct slice boundary rather than the inner heading.
      */
     private function sectionStart(\DOMNode $node, ?\DOMNode $container): \DOMNode
     {

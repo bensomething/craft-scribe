@@ -15,7 +15,7 @@ use yii\base\Event;
 use yii\caching\TagDependency;
 
 /**
- * Scribe — a field that pulls a GitHub README into your content, sliced by heading.
+ * Scribe: a field that pulls a GitHub README into your content, sliced by heading.
  *
  * @property-read ReadmeService $readme
  * @method Settings getSettings()
@@ -38,7 +38,6 @@ class Plugin extends \craft\base\Plugin
     {
         parent::init();
 
-        // Register the field type.
         Event::on(
             Fields::class,
             Fields::EVENT_REGISTER_FIELD_TYPES,
@@ -47,9 +46,8 @@ class Plugin extends \craft\base\Plugin
             }
         );
 
-        // A dedicated "GitHub READMEs" option in Utilities → Caches (and the
-        // clear-caches console command) so fetched content can be flushed on
-        // its own instead of nuking the whole data cache.
+        // A dedicated "GitHub READMEs" cache option so fetched content can be
+        // flushed on its own instead of nuking the whole data cache.
         Event::on(
             ClearCaches::class,
             ClearCaches::EVENT_REGISTER_CACHE_OPTIONS,
@@ -77,9 +75,6 @@ class Plugin extends \craft\base\Plugin
         ]);
     }
 
-    /**
-     * Convenience accessor: Plugin::getInstance()->readme.
-     */
     public function getReadme(): ReadmeService
     {
         return $this->get('readme');

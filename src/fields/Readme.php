@@ -14,11 +14,13 @@ use craft\helpers\Json;
 use yii\db\Schema;
 
 /**
- * Scribe field — a GitHub source (repo README or a specific .md) plus an
+ * Scribe field: a GitHub source (repo README or a specific .md) plus an
  * optional Start From / End Before heading range.
  */
 class Readme extends Field
 {
+    public bool $showPreview = false;
+
     public static function displayName(): string
     {
         return Craft::t('scribe', 'Scribe');
@@ -67,6 +69,13 @@ class Readme extends Field
         ];
     }
 
+    public function getSettingsHtml(): ?string
+    {
+        return Craft::$app->getView()->renderTemplate('scribe/_field/settings.twig', [
+            'field' => $this,
+        ]);
+    }
+
     protected function inputHtml(mixed $value, ?ElementInterface $element, bool $inline): string
     {
         /** @var ReadmeValue $value */
@@ -76,12 +85,17 @@ class Readme extends Field
         $id = $this->getInputId();
         $service = Plugin::getInstance()->getReadme();
         $headings = (!$value->isEmpty()) ? $service->headings($value->url) : [];
+        $previewHtml = ($this->showPreview && !$value->isEmpty())
+            ? $service->render($value->url, $value->startFrom, $value->endBefore)
+            : null;
 
         $view->registerJs(sprintf(
             'new Craft.ScribeField(%s, %s);',
             Json::encode($view->namespaceInputId($id)),
             Json::encode([
                 'headingsAction' => 'scribe/headings',
+                'previewAction' => 'scribe/preview',
+                'preview' => $this->showPreview,
                 'headings' => $headings,
             ])
         ));
@@ -91,6 +105,8 @@ class Readme extends Field
             'name' => $this->handle,
             'value' => $value,
             'hasToken' => $service->hasToken(),
+            'showPreview' => $this->showPreview,
+            'previewHtml' => $previewHtml,
             'repos' => $service->repos(),
             'headings' => $headings,
         ]);

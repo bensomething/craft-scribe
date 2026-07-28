@@ -1,0 +1,9 @@
+{% import "_includes/forms.twig" as forms %}
+
+{{ forms.lightswitchField({
+    label: 'Show Preview'|t('scribe'),
+    instructions: 'Show a preview of the selected section while editing.'|t('scribe'),
+    id: 'showPreview',
+    name: 'showPreview',
+    on: field.showPreview,
+}) }}

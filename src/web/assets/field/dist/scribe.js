@@ -2,14 +2,15 @@
 (function ($) {
   'use strict';
 
-  // Repo picker + heading range for the Scribe field. The repo <select> is
-  // selectized by Craft's forms.selectize macro; here we react to changes and
+  // Repo picker + heading range for the Scribe field. When the repo changes,
   // repopulate the Start From / End Before menus from the source's headings.
   Craft.ScribeField = Garnish.Base.extend({
     $url: null,
     $startFrom: null,
     $endBefore: null,
     $range: null,
+    $preview: null,
+    $previewBody: null,
     settings: null,
     headings: null,
 
@@ -20,22 +21,29 @@
       this.$startFrom = $('#' + id + '-startFrom');
       this.$endBefore = $('#' + id + '-endBefore');
       this.$range = this.$url.closest('.scribe-field').find('[data-scribe-range]');
+      this.$preview = this.$url.closest('.scribe').find('[data-scribe-preview]');
+      this.$previewBody = this.$preview.find('[data-scribe-preview-body]');
 
       this.addListener(this.$url, 'change', 'onChange');
-      this.addListener(this.$startFrom, 'change', 'refreshEndBefore');
+      this.addListener(this.$startFrom, 'change', 'onStartChange');
+      this.addListener(this.$endBefore, 'change', 'refreshPreview');
       this.hookRepoClear();
 
-      // Render the heading menus (indented) from the server-provided headings,
-      // preserving the saved selections.
+      // Render the heading menus from the server-provided headings.
       if (this.headings.length) {
         this.populate(this.headings);
       }
     },
 
+    onStartChange: function () {
+      this.refreshEndBefore();
+      this.refreshPreview();
+    },
+
     // Let emptying the repo box clear the field. Craft's select_on_focus plugin
-    // restores the value on blur (native-select behaviour), so we track when the
-    // box is emptied and force-clear on the next frame, after that restore runs.
-    // (Selectize is set up by Craft's macro just after this — retry until ready.)
+    // restores the value on blur, so we track when the box is emptied and
+    // force-clear on the next frame, after that restore runs.
+    // (Selectize is set up by Craft's macro just after this, so retry until ready.)
     hookRepoClear: function () {
       var self = this;
       var el = this.$url[0];
@@ -70,6 +78,10 @@
       var url = this.$url.val();
       if (!url) {
         this.$range.addClass('hidden');
+        this.$preview.addClass('hidden');
+        this.headings = [];
+        this.$startFrom.val('');
+        this.$endBefore.val('');
         return;
       }
       this.loadHeadings(url);
@@ -88,12 +100,44 @@
         })
         .finally(function () {
           self.$range.removeClass('hidden');
+          self.refreshPreview();
         });
+    },
+
+    // Fetch and show the rendered section, debounced. Only when the field has
+    // Show Preview on.
+    refreshPreview: function () {
+      if (!this.settings.preview || !this.$preview.length) {
+        return;
+      }
+      var self = this;
+      var url = this.$url.val();
+      if (!url) {
+        this.$preview.addClass('hidden');
+        return;
+      }
+      this.$preview.removeClass('hidden');
+      clearTimeout(this.previewTimer);
+      this.previewTimer = setTimeout(function () {
+        Craft.sendActionRequest('POST', self.settings.previewAction, {
+          data: {
+            url: url,
+            startFrom: self.$startFrom.val(),
+            endBefore: self.$endBefore.val(),
+          },
+        })
+          .then(function (response) {
+            self.$previewBody.html((response.data && response.data.html) || '');
+          })
+          .catch(function () {
+            self.$previewBody.html('');
+          });
+      }, 300);
     },
 
     populate: function (headings) {
       this.headings = headings || [];
-      // Start From offers every heading; keep the current choice if still valid.
+      // Start From offers every heading, keeping the current choice if still valid.
       var current = this.$startFrom.val();
       var keep = this.headings.some(function (h) { return h.value === current; });
       this.$startFrom.html(this.optionsHtml(this.headings)).val(keep ? current : '');

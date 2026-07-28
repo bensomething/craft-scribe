@@ -1,6 +1,6 @@
 {% import "_includes/forms.twig" as forms %}
 
-{# Repo menu options: a blank prompt, your repositories, and — when editing — a
+{# Repo menu options: a blank prompt, your repositories, and, when editing, any
    saved value that isn't in the fetched list (e.g. beyond the first 100). #}
 {% set repoValues = repos|column('value') %}
 {% set repoOptions = [{ label: 'Select a repository…'|t('scribe'), value: '' }]|merge(repos) %}
@@ -54,5 +54,11 @@
         </div>
     </div>
 </div>
+{% if showPreview %}
+<details class="scribe-preview{{ value.isEmpty ? ' hidden' }}" data-scribe-preview{% if not value.isEmpty %} open{% endif %}>
+    <summary>{{ 'Preview'|t('scribe') }}</summary>
+    <div class="scribe-preview-body prose" data-scribe-preview-body>{{ previewHtml|raw }}</div>
+</details>
+{% endif %}
 </div>
 {% endif %}

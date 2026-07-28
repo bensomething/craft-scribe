@@ -19,6 +19,10 @@
   display: flex;
   gap: 1rem;
 }
+/* Beat the display:flex above so .hidden actually hides the row. */
+.scribe-field > .scribe-range.hidden {
+  display: none;
+}
 .scribe-field > .scribe-range > .scribe-col {
   flex: 0 1 11rem;
   min-width: 0;
@@ -41,7 +45,7 @@
 }
 .scribe-field .selectize-input > .item {
   /* Strip the chip look so a selected value is the same size as the focused
-     input — no jump, no growth. */
+     input, with no jump or growth. */
   background: none;
   padding: 0 !important;
   font-size: 14px;
@@ -67,7 +71,7 @@
   white-space: nowrap;
 }
 
-/* Two rows: repo goes full width; Start From / End Before split 50/50 below it. */
+/* Two rows: repo goes full width, Start From / End Before split 50/50 below it. */
 @container (max-width: 37rem) {
   .scribe-field > .scribe-repo {
     flex-basis: 100%;
@@ -90,10 +94,82 @@
   }
 }
 
-/* No stray top margin on the inline fields; keep their labels on one line. */
+/* No stray top margin on the inline fields, and keep their labels on one line. */
 .scribe-field .field {
   margin-top: 0;
 }
 .scribe-field .heading > label {
   white-space: nowrap;
+}
+
+/* Preview pane (Show Preview). Light readable defaults for the fetched HTML,
+   since the site's own CSS isn't loaded in the CP. */
+.scribe-preview {
+  margin-top: 1rem;
+  border: 1px solid var(--hairline-color);
+  border-radius: var(--large-border-radius, 5px);
+  background: var(--white, #fff);
+}
+.scribe-preview.hidden {
+  display: none;
+}
+.scribe-preview > summary {
+  cursor: pointer;
+  padding: 8px 12px;
+  font-weight: 600;
+  color: var(--medium-text-color);
+  user-select: none;
+}
+.scribe-preview-body {
+  padding: 0 16px 12px;
+  max-height: 24rem;
+  overflow: auto;
+  overscroll-behavior: none;
+}
+.scribe-preview-body h1,
+.scribe-preview-body h2,
+.scribe-preview-body h3,
+.scribe-preview-body h4 {
+  font-weight: 600;
+  margin: 1em 0 0.4em;
+  line-height: 1.25;
+}
+.scribe-preview-body p,
+.scribe-preview-body ul,
+.scribe-preview-body ol,
+.scribe-preview-body pre,
+.scribe-preview-body table,
+.scribe-preview-body blockquote {
+  margin: 0.6em 0;
+}
+/* The CP resets list markers globally; restore them for the rendered content. */
+.scribe-preview-body ul,
+.scribe-preview-body ol {
+  padding-left: 1.5em;
+}
+.scribe-preview-body ul {
+  list-style: disc;
+}
+.scribe-preview-body ol {
+  list-style: decimal;
+}
+.scribe-preview-body li {
+  margin: 0.2em 0;
+}
+.scribe-preview-body pre {
+  background: var(--gray-050, #f3f7fc);
+  padding: 10px 12px;
+  border-radius: 4px;
+  overflow: auto;
+}
+.scribe-preview-body img {
+  max-width: 100%;
+  height: auto;
+}
+.scribe-preview-body a {
+  color: var(--link-color);
+  text-decoration: underline;
+}
+.scribe-preview-body .markdown-heading > .anchor {
+  display: none;
 }

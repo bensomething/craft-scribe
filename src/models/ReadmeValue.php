@@ -36,7 +36,7 @@ class ReadmeValue extends Model
     }
 
     /**
-     * All of the source README's headings (handy in templates).
+     * The source README's headings.
      *
      * @return array<int, array{value: string, label: string, level: int}>
      */
