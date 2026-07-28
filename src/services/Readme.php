@@ -2,6 +2,7 @@
 
 namespace bensomething\scribe\services;
 
+use bensomething\scribe\Parser;
 use bensomething\scribe\Plugin;
 use Craft;
 use craft\helpers\App;
@@ -24,6 +25,13 @@ class Readme extends Component
     // Tag on every cached item so they can be flushed as a group.
     public const CACHE_TAG = 'scribe:github';
 
+    private ?Parser $parser = null;
+
+    private function parser(): Parser
+    {
+        return $this->parser ??= new Parser();
+    }
+
     /**
      * Render the README (optionally sliced to a section) as display HTML, or
      * null on failure so callers can fall back.
@@ -43,14 +51,14 @@ class Readme extends Component
 
         // Slicing operates on the placeholder HTML (no rendered code cards to mangle).
         if ($startFrom || $endBefore) {
-            $html = $this->slice($html, $startFrom, $endBefore) ?? $html;
+            $html = $this->parser()->slice($html, $startFrom, $endBefore) ?? $html;
         }
 
         if ($hideHeading) {
-            $html = $this->dropLeadingHeading($html, $hideHeading);
+            $html = $this->parser()->dropLeadingHeading($html, $hideHeading);
         }
 
-        return $this->restoreCodeBlocks($html, $data['cards'] ?? []);
+        return $this->restoreCodeBlocks($html, $data['cards']);
     }
 
     /**
@@ -65,31 +73,7 @@ class Readme extends Component
             return [];
         }
 
-        $doc = $this->loadDoc($data['html']);
-        $xpath = new \DOMXPath($doc);
-
-        $out = [];
-        $wrappers = $xpath->query(
-            "//*[contains(concat(' ', normalize-space(@class), ' '), ' markdown-heading ')]"
-        );
-        foreach ($wrappers as $wrapper) {
-            $heading = $xpath->query(
-                './/*[self::h1 or self::h2 or self::h3 or self::h4 or self::h5 or self::h6][1]',
-                $wrapper
-            )->item(0);
-            $anchor = $xpath->query(".//a[starts-with(@id, 'user-content-')][1]", $wrapper)->item(0);
-            if (!$heading || !$anchor) {
-                continue;
-            }
-
-            $out[] = [
-                'value' => substr($anchor->getAttribute('id'), 13), // strip "user-content-"
-                'label' => trim(preg_replace('/\s+/', ' ', $heading->textContent)),
-                'level' => (int)substr(strtolower($heading->nodeName), 1),
-            ];
-        }
-
-        return $out;
+        return $this->parser()->headings($data['html']);
     }
 
     /**
@@ -168,7 +152,7 @@ class Readme extends Component
      */
     private function data(?string $source): ?array
     {
-        $repo = $this->normalizeRepo($source);
+        $repo = $this->parser()->normalizeRepo($source);
         if ($repo === null || !$this->repoAllowed($repo)) {
             return null;
         }
@@ -303,7 +287,7 @@ class Readme extends Component
      */
     private function transform(string $html, string $repo, string $branch): array
     {
-        $doc = $this->loadDoc($html);
+        $doc = $this->parser()->loadDoc($html);
         $xpath = new \DOMXPath($doc);
 
         $this->absolutizeUrls($xpath, $repo, $branch);
@@ -336,7 +320,7 @@ class Readme extends Component
             $node->parentNode->replaceChild($doc->createComment("CODEBLOCK:{$index}"), $node);
         }
 
-        return ['html' => $this->innerHtml($doc), 'cards' => $cards];
+        return ['html' => $this->parser()->innerHtml($doc), 'cards' => $cards];
     }
 
     /**
@@ -392,12 +376,18 @@ class Readme extends Component
     private function absolutizeUrls(\DOMXPath $xpath, string $repo, string $branch): void
     {
         foreach ($xpath->query('//img[@src]') as $img) {
+            if (!$img instanceof \DOMElement) {
+                continue;
+            }
             $abs = $this->absoluteUrl($img->getAttribute('src'), $repo, $branch, true);
             if ($abs !== null) {
                 $img->setAttribute('src', $abs);
             }
         }
         foreach ($xpath->query('//a[@href]') as $a) {
+            if (!$a instanceof \DOMElement) {
+                continue;
+            }
             $abs = $this->absoluteUrl($a->getAttribute('href'), $repo, $branch, false);
             if ($abs !== null) {
                 $a->setAttribute('href', $abs);
@@ -424,144 +414,6 @@ class Readme extends Component
         return $base . $path;
     }
 
-    // =========================================================================
-    // Slicing
-    // =========================================================================
-
-    /**
-     * README HTML between two heading anchors: from $startAnchor (inclusive, or
-     * the top if null) up to $endAnchor (exclusive, or the end if null). Null if
-     * a named start anchor isn't found, so callers can fall back to the full README.
-     */
-    private function slice(string $html, ?string $startAnchor, ?string $endAnchor): ?string
-    {
-        $startAnchor = $startAnchor ? ltrim(trim($startAnchor), '#') : null;
-        $endAnchor = $endAnchor ? ltrim(trim($endAnchor), '#') : null;
-        if ($startAnchor === '') {
-            $startAnchor = null;
-        }
-        if ($endAnchor === '') {
-            $endAnchor = null;
-        }
-        if ($startAnchor === null && $endAnchor === null) {
-            return null;
-        }
-
-        $doc = $this->loadDoc($html);
-        $xpath = new \DOMXPath($doc);
-        $container = $xpath->query(
-            "//*[contains(concat(' ', normalize-space(@class), ' '), ' markdown-body ')]"
-        )->item(0);
-
-        if ($startAnchor !== null) {
-            $startAnchorNode = $this->findAnchorNode($xpath, $startAnchor);
-            if (!$startAnchorNode) {
-                return null;
-            }
-            $start = $this->sectionStart($startAnchorNode, $container);
-        } else {
-            $start = $this->firstFlowNode($xpath, $container);
-        }
-        if (!$start) {
-            return null;
-        }
-
-        $end = null;
-        if ($endAnchor !== null) {
-            $endAnchorNode = $this->findAnchorNode($xpath, $endAnchor);
-            if ($endAnchorNode) {
-                $end = $this->sectionStart($endAnchorNode, $container);
-            }
-        }
-
-        $result = '';
-        for ($node = $start; $node !== null && $node !== $end; $node = $node->nextSibling) {
-            $result .= $doc->saveHTML($node);
-        }
-
-        return trim($result) !== '' ? $result : null;
-    }
-
-    /**
-     * Remove the first heading if its text matches $title, along with its GitHub
-     * markdown-heading wrapper (so the octicon anchor goes too).
-     */
-    private function dropLeadingHeading(string $html, string $title): string
-    {
-        $title = $this->normalizeHeading($title);
-        if ($title === '') {
-            return $html;
-        }
-
-        $doc = $this->loadDoc($html);
-        $xpath = new \DOMXPath($doc);
-        $heading = $xpath->query('(//h1|//h2|//h3|//h4|//h5|//h6)[1]')->item(0);
-        if (!$heading || $this->normalizeHeading($heading->textContent) !== $title) {
-            return $html;
-        }
-
-        $container = $xpath->query(
-            "//*[contains(concat(' ', normalize-space(@class), ' '), ' markdown-body ')]"
-        )->item(0);
-        $block = $this->sectionStart($heading, $container);
-        if ($block->parentNode !== null) {
-            $block->parentNode->removeChild($block);
-        }
-
-        return $this->innerHtml($doc);
-    }
-
-    /**
-     * Find the heading anchor for a slug. GitHub gives each heading a permalink
-     * <a id="user-content-slug">. Match that id specifically, NOT arbitrary
-     * <a href="#slug">, which also matches inline cross-reference links and
-     * would move a slice boundary to the wrong, earlier place.
-     */
-    private function findAnchorNode(\DOMXPath $xpath, string $anchor): ?\DOMNode
-    {
-        return $xpath->query("//a[@id=" . $this->xpathLiteral('user-content-' . $anchor) . "]")->item(0)
-            ?? $xpath->query(
-                "//*[self::h1 or self::h2 or self::h3 or self::h4 or self::h5 or self::h6]"
-                . "[@id=" . $this->xpathLiteral($anchor) . "]"
-            )->item(0);
-    }
-
-    private function firstFlowNode(\DOMXPath $xpath, ?\DOMNode $container): ?\DOMNode
-    {
-        $parent = $container ?? $xpath->query("//*[@id='__root']")->item(0);
-        if ($parent === null) {
-            return null;
-        }
-        for ($node = $parent->firstChild; $node !== null; $node = $node->nextSibling) {
-            if ($node instanceof \DOMElement) {
-                return $node;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * The top-level flow block (child of the markdown-body container) that holds
-     * the given node, the correct slice boundary rather than the inner heading.
-     */
-    private function sectionStart(\DOMNode $node, ?\DOMNode $container): \DOMNode
-    {
-        if ($container !== null) {
-            $cursor = $node;
-            while ($cursor->parentNode !== null && $cursor->parentNode !== $container) {
-                $cursor = $cursor->parentNode;
-            }
-            if ($cursor->parentNode === $container) {
-                return $cursor;
-            }
-        }
-
-        if ($node->parentNode instanceof \DOMElement) {
-            return $node->parentNode;
-        }
-        return $node;
-    }
-
     private function restoreCodeBlocks(string $html, array $cards): string
     {
         if ($cards === []) {
@@ -570,68 +422,5 @@ class Readme extends Component
         return preg_replace_callback('/<!--CODEBLOCK:(\d+)-->/', static function($m) use ($cards) {
             return $cards[(int)$m[1]] ?? '';
         }, $html);
-    }
-
-    // =========================================================================
-    // Helpers
-    // =========================================================================
-
-    private function loadDoc(string $html): \DOMDocument
-    {
-        $doc = new \DOMDocument();
-        $previous = libxml_use_internal_errors(true);
-        $doc->loadHTML(
-            '<?xml encoding="UTF-8"><div id="__root">' . $html . '</div>',
-            LIBXML_NOERROR | LIBXML_NOWARNING
-        );
-        libxml_clear_errors();
-        libxml_use_internal_errors($previous);
-        return $doc;
-    }
-
-    private function innerHtml(\DOMDocument $doc): string
-    {
-        $root = (new \DOMXPath($doc))->query("//*[@id='__root']")->item(0);
-        if ($root === null) {
-            return '';
-        }
-        $out = '';
-        foreach ($root->childNodes as $child) {
-            $out .= $doc->saveHTML($child);
-        }
-        return $out;
-    }
-
-    private function normalizeHeading(string $text): string
-    {
-        return mb_strtolower(trim(preg_replace('/\s+/', ' ', $text)));
-    }
-
-    private function normalizeRepo(?string $source): ?string
-    {
-        $source = trim((string)$source);
-        if ($source === '') {
-            return null;
-        }
-
-        if (preg_match('~(?:github\.com|raw\.githubusercontent\.com)/([^/\s]+)/([^/\s]+)~i', $source, $m)) {
-            return $m[1] . '/' . preg_replace('/\.git$/', '', $m[2]);
-        }
-        if (preg_match('~^([^/\s]+)/([^/\s]+)$~', $source, $m)) {
-            return $m[1] . '/' . preg_replace('/\.git$/', '', $m[2]);
-        }
-
-        return null;
-    }
-
-    private function xpathLiteral(string $value): string
-    {
-        if (!str_contains($value, "'")) {
-            return "'" . $value . "'";
-        }
-        if (!str_contains($value, '"')) {
-            return '"' . $value . '"';
-        }
-        return "concat('" . str_replace("'", "',\"'\",'", $value) . "')";
     }
 }
