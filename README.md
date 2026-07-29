@@ -64,7 +64,7 @@ Render it in a template:
 | Setting | Description |
 | --- | --- |
 | **GitHub Token** | Required. Authenticates the API and scopes the field to your repositories. Supports env vars. |
-| **Cache Duration** | How long (seconds) to cache fetched data. Default `1800`. |
+| **Cache Duration** | How long (seconds) to cache fetched READMEs. Default `1800`. The list of your repositories is cached for six hours regardless, since it's slower to build and changes far less often. |
 | **Code Block Template** | Optional site template used to render each code block. |
 
 Fetched content is cached and can be flushed on its own via **Utilities → Caches → GitHub READMEs (Scribe)** or `php craft clear-caches scribe-readmes`.

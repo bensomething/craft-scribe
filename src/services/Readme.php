@@ -49,6 +49,28 @@ class Readme extends Component
     }
     GRAPHQL;
 
+    /**
+     * Who the token belongs to, who owns one repo, and the branch its README
+     * renders from — everything a page render needs before fetching.
+     */
+    private const REPO_META_QUERY = <<<'GRAPHQL'
+    query($owner: String!, $name: String!) {
+      viewer { login }
+      repository(owner: $owner, name: $name) {
+        owner { login }
+        defaultBranchRef { name }
+      }
+    }
+    GRAPHQL;
+
+    /**
+     * The repo list is held far longer than a README, and clearing Scribe's
+     * caches flushes it. Building it makes GitHub resolve a git object for
+     * every repository you own, which is slow enough that even the control
+     * panel shouldn't rebuild it on the half hour.
+     */
+    private const REPOS_CACHE_DURATION = 21600; // 6 hours
+
     private ?Parser $parser = null;
 
     private function parser(): Parser
@@ -135,7 +157,7 @@ class Readme extends Component
         $repos = $cache->get($cacheKey);
         if ($repos === false) {
             $repos = $this->fetchRepos();
-            $cache->set($cacheKey, $repos, $this->cacheDuration(), new TagDependency(['tags' => self::CACHE_TAG]));
+            $cache->set($cacheKey, $repos, self::REPOS_CACHE_DURATION, new TagDependency(['tags' => self::CACHE_TAG]));
         }
 
         return $repos;
@@ -234,7 +256,15 @@ class Readme extends Component
     private function data(?string $source): ?array
     {
         $repo = $this->parser()->normalizeRepo($source);
-        if ($repo === null || !$this->repoAllowed($repo)) {
+        if ($repo === null) {
+            return null;
+        }
+
+        // Only repos the token account owns may be fetched — answered by the
+        // same lookup that reports the branch, so rendering never waits on the
+        // repo list, which is far more expensive to build.
+        $meta = $this->repoMeta($repo);
+        if (!$meta['owned']) {
             return null;
         }
 
@@ -245,7 +275,7 @@ class Readme extends Component
         if ($data === false) {
             $raw = $this->fetch($repo);
             $data = $raw !== null
-                ? $this->transform($raw, $repo, $this->fetchDefaultBranch($repo))
+                ? $this->transform($raw, $repo, $meta['branch'])
                 : ['html' => '', 'cards' => []];
             // Cache successes for the full duration. Cache misses briefly so a
             // transient failure or rate-limit doesn't hammer the API.
@@ -276,35 +306,76 @@ class Readme extends Component
     }
 
     /**
-     * The repo's default branch (cached), so relative asset URLs resolve to the
-     * branch GitHub rendered the README from. Falls back to "main".
+     * What rendering needs to know about a repo, cached: whether the token
+     * account owns it (only those may be fetched) and the branch GitHub
+     * rendered its README from, so relative asset URLs resolve. One request
+     * answers both, and it stays clear of the repo list — a page render should
+     * never wait on that.
+     *
+     * @return array{owned: bool, branch: string}
      */
-    private function fetchDefaultBranch(string $repo): string
+    private function repoMeta(string $repo): array
     {
         $cache = Craft::$app->getCache();
-        $cacheKey = 'scribe:branch:' . $repo;
+        $cacheKey = 'scribe:meta:' . md5((string)$this->token()) . ':' . $repo;
 
-        $branch = $cache->get($cacheKey);
-        if ($branch !== false && $branch !== '') {
-            return $branch;
+        $meta = $cache->get($cacheKey);
+        if ($meta === false) {
+            $meta = $this->fetchRepoMeta($repo);
+            // A refusal is held briefly, so a transient failure or rate limit
+            // can't lock a repo out for the full duration.
+            $cache->set(
+                $cacheKey,
+                $meta,
+                $meta['owned'] ? $this->cacheDuration() : 120,
+                new TagDependency(['tags' => self::CACHE_TAG])
+            );
         }
 
-        $branch = 'main';
+        return $meta;
+    }
+
+    /**
+     * @return array{owned: bool, branch: string}
+     */
+    private function fetchRepoMeta(string $repo): array
+    {
+        $unknown = ['owned' => false, 'branch' => 'main'];
+        if (!$this->token()) {
+            return $unknown;
+        }
+
+        [$owner, $name] = array_pad(explode('/', $repo, 2), 2, '');
+
         try {
-            $response = Craft::createGuzzleClient()->get("https://api.github.com/repos/{$repo}", [
-                'headers' => $this->apiHeaders('application/vnd.github+json'),
+            $response = Craft::createGuzzleClient()->post('https://api.github.com/graphql', [
+                'headers' => $this->apiHeaders('application/json'),
+                'json' => [
+                    'query' => self::REPO_META_QUERY,
+                    'variables' => ['owner' => $owner, 'name' => $name],
+                ],
                 'timeout' => 8,
             ]);
-            $data = json_decode((string)$response->getBody(), true);
-            if (!empty($data['default_branch'])) {
-                $branch = $data['default_branch'];
-            }
-        } catch (\Throwable $e) {
-            Craft::warning("Scribe branch lookup failed for {$repo}: " . $e->getMessage(), __METHOD__);
-        }
+            $data = json_decode((string)$response->getBody(), true)['data'] ?? [];
 
-        $cache->set($cacheKey, $branch, $this->cacheDuration(), new TagDependency(['tags' => self::CACHE_TAG]));
-        return $branch;
+            // A repo the token can't see comes back null (with a NOT_FOUND
+            // alongside it). That isn't a failure, just one Scribe won't touch.
+            $repository = $data['repository'] ?? null;
+            if (!is_array($repository)) {
+                return $unknown;
+            }
+
+            $viewer = strtolower((string)($data['viewer']['login'] ?? ''));
+            $ownedBy = strtolower((string)($repository['owner']['login'] ?? ''));
+
+            return [
+                'owned' => $viewer !== '' && $viewer === $ownedBy,
+                'branch' => $repository['defaultBranchRef']['name'] ?? 'main',
+            ];
+        } catch (\Throwable $e) {
+            Craft::warning("Scribe repo lookup failed for {$repo}: " . $e->getMessage(), __METHOD__);
+            return $unknown;
+        }
     }
 
     private function apiHeaders(string $accept): array
@@ -319,24 +390,6 @@ class Readme extends Component
             $headers['Authorization'] = 'Bearer ' . $token;
         }
         return $headers;
-    }
-
-    /**
-     * Only the token account's own repositories (those in its repo list) may be
-     * fetched, needing just the Contents/Metadata read the token already grants.
-     */
-    private function repoAllowed(string $repo): bool
-    {
-        if (!$this->token()) {
-            return false;
-        }
-        $repo = strtolower($repo);
-        foreach ($this->repos() as $r) {
-            if (strtolower($r['value']) === $repo) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private function cacheDuration(): int

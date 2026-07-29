@@ -1,5 +1,15 @@
 # Release Notes for Scribe
 
+## 1.0.0-beta.5 - 2026-07-29
+
+### Changed
+
+- The repository list is cached for six hours rather than the configured **Cache Duration**, which applies to READMEs. Clearing Scribe's caches still flushes it.
+
+### Fixed
+
+- Rendering a field no longer waits on the repository list being built, which could add several seconds to the first page load after a cache expiry. Ownership is now confirmed by a single lookup that also reports the branch.
+
 ## 1.0.0-beta.4 - 2026-07-29
 
 ### Added
