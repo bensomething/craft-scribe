@@ -1,6 +1,6 @@
 # Release Notes for Scribe
 
-## Unreleased
+## 1.0.0-beta.6 - 2026-07-29
 
 ### Changed
 
