@@ -11,7 +11,7 @@ Scribe adds one field: pick a repository, then optionally choose a **Start From*
 
 - Craft CMS 5.10 or later
 - PHP 8.2 or later
-- A GitHub personal access token
+- A GitHub [personal access token](https://github.com/settings/personal-access-tokens)
 
 ## Installation
 
@@ -26,10 +26,10 @@ The `-beta` in the constraint is what lets Composer install it under a project's
 
 Scribe talks to the GitHub API, so it needs a token.
 
-1. Create a **fine-grained personal access token** (GitHub → Settings → Developer settings → Fine-grained tokens).
+1. Create a **fine-grained personal access token** (GitHub → Settings → Developer settings → [Fine-grained tokens](https://github.com/settings/personal-access-tokens)).
    - **Repository access:** All repositories owned by you.
    - **Permissions:** Repository → **Contents: Read-only** (this includes Metadata: Read).
-2. In **Settings → Plugins → Scribe**, paste the token into **GitHub Token**, or better store it in an environment variable and reference it (e.g. `$GITHUB_TOKEN`).
+2. In **Settings → Plugins → Scribe**, paste the token into **GitHub Token**, or store it in an environment variable and reference it (e.g. `$GITHUB_TOKEN`).
 
 The field then lists your own repositories (public **and** private), and Scribe will only ever fetch repos owned by that token account.
 
