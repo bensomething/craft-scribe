@@ -1,17 +1,26 @@
 {% import "_includes/forms.twig" as forms %}
 
-{# Repo menu options: a blank prompt, your repositories, and, when editing, any
-   saved value that isn't in the fetched list (e.g. beyond the first 100). #}
+{# None of the three menus carries a visible label: each one's blank option
+   doubles as its placeholder, so an empty menu still says what it sets. They
+   keep an aria-label, since a placeholder isn't announced as a label. #}
+{% set urlLabel = 'Readme File'|t('scribe') %}
+{% set startLabel = 'Start From'|t('scribe') %}
+{% set endLabel = 'End Before'|t('scribe') %}
+{% set startPlaceholder = 'Start from…'|t('scribe') %}
+{% set endPlaceholder = 'End before…'|t('scribe') %}
+
+{# Readme menu options: the placeholder, your repositories that have a README
+   (each hinting its filename), and, when editing, any saved value that isn't in
+   the fetched list (e.g. its README has since been removed). #}
 {% set repoValues = repos|column('value') %}
-{% set repoOptions = [{ label: 'Select a repository…'|t('scribe'), value: '' }]|merge(repos) %}
+{% set repoOptions = [{ label: 'Select a readme file…'|t('scribe'), value: '' }]|merge(repos) %}
 {% if value.url and value.url not in repoValues %}
     {% set repoOptions = repoOptions|merge([{ label: value.url, value: value.url }]) %}
 {% endif %}
 
-{# Heading menu options: a blank default plus every heading in the source. The
-   blank label is a non-breaking space so an empty selection keeps the select's
-   line full height (an empty option collapses it and leaves a gap below). #}
-{% set headingOptions = [{ label: " ", value: '' }] %}
+{# Heading menu options: each menu's own placeholder plus every heading in the
+   source. JS narrows End Before to the headings after Start From. #}
+{% set headingOptions = [] %}
 {% for h in headings %}
     {% set headingOptions = headingOptions|merge([{ label: h.label, value: h.value }]) %}
 {% endfor %}
@@ -26,35 +35,41 @@
 <div class="scribe">
 <div class="scribe-field">
     <div class="scribe-repo">
-        {{ forms.selectizeField({
-            label: 'Repository'|t('scribe'),
+        {{ forms.selectize({
             id: id ~ '-url',
             name: name ~ '[url]',
             options: repoOptions,
             value: value.url,
+            inputAttributes: { aria: { label: urlLabel } },
+            selectizeOptions: { dropdownClass: 'scribe-dropdown' },
         }) }}
     </div>
 
     <div class="scribe-range{{ value.isEmpty ? ' hidden' }}" data-scribe-range>
         <div class="scribe-col">
-            {{ forms.selectField({
-                label: 'Start From'|t('scribe'),
+            {{ forms.select({
                 id: id ~ '-startFrom',
                 name: name ~ '[startFrom]',
-                options: headingOptions,
+                options: [{ label: startPlaceholder, value: '' }]|merge(headingOptions),
                 value: value.startFrom,
+                inputAttributes: { aria: { label: startLabel } },
             }) }}
         </div>
         <div class="scribe-col">
-            {{ forms.selectField({
-                label: 'End Before'|t('scribe'),
+            {{ forms.select({
                 id: id ~ '-endBefore',
                 name: name ~ '[endBefore]',
-                options: headingOptions,
+                options: [{ label: endPlaceholder, value: '' }]|merge(headingOptions),
                 value: value.endBefore,
+                inputAttributes: { aria: { label: endLabel } },
             }) }}
         </div>
     </div>
+
+    {# Only in the layout while a readme is being fetched, trailing the last
+       visible menu — End Before, or the readme picker while the range is
+       still hidden. #}
+    <div class="spinner" role="status" aria-live="polite" aria-label="{{ 'Loading'|t('app') }}" data-scribe-spinner></div>
 </div>
 {% if showPreview %}
 <details class="scribe-preview{{ value.isEmpty ? ' hidden' }}" data-scribe-preview{% if not value.isEmpty %} open{% endif %}>

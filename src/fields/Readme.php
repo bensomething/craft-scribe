@@ -95,6 +95,10 @@ class Readme extends Field
                 'previewAction' => 'scribe/preview',
                 'preview' => $this->showPreview,
                 'headings' => $headings,
+                // Placeholders for the heading menus' blank option, which stands
+                // in for the labels the field doesn't show.
+                'startPlaceholder' => Craft::t('scribe', 'Start from…'),
+                'endPlaceholder' => Craft::t('scribe', 'End before…'),
             ])
         ));
 

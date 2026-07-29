@@ -1,5 +1,24 @@
 # Release Notes for Scribe
 
+## 1.0.0-beta.2 - 2026-07-29
+
+### Added
+
+- The readme picker now shows each repository's README filename beside its name.
+- A spinner while a readme is being fetched.
+
+### Changed
+
+- The field's first menu is labelled **Readme File** and lists only repositories that have a README. The list comes from a single GraphQL request per 100 repositories, so the check costs no extra API calls.
+- The three menus no longer carry visible labels: each one's blank option is now its placeholder.
+- The readme menu is capped at roughly eight rows.
+- The **Preview** pane's disclosure caret sits in a fixed square box so it can't shift the label, its header takes a full-width border when open, and its content has top padding.
+
+### Fixed
+
+- Focusing a readme picker that already had a value hid the **Start From** / **End Before** menus and the preview, then refetched them on blur.
+- Fields rendered without a GitHub token threw a JavaScript error.
+
 ## 1.0.0-beta.1 - 2026-07-29
 
 ### Added

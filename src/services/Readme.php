@@ -28,6 +28,27 @@ class Readme extends Component
     // Tag on every cached item so they can be flushed as a group.
     public const CACHE_TAG = 'scribe:github';
 
+    /**
+     * Your own repositories, each with its root tree so the README can be
+     * spotted without a second request per repo.
+     */
+    private const REPOS_QUERY = <<<'GRAPHQL'
+    query($cursor: String) {
+      viewer {
+        repositories(first: 100, after: $cursor, ownerAffiliations: [OWNER], orderBy: {field: NAME, direction: ASC}) {
+          pageInfo { hasNextPage endCursor }
+          nodes {
+            name
+            nameWithOwner
+            root: object(expression: "HEAD:") {
+              ... on Tree { entries { name type } }
+            }
+          }
+        }
+      }
+    }
+    GRAPHQL;
+
     private ?Parser $parser = null;
 
     private function parser(): Parser
@@ -80,10 +101,11 @@ class Readme extends Component
     }
 
     /**
-     * The token account's own repositories (public and private), for the field's
-     * repo menu.
+     * The token account's own repositories (public and private) that have a
+     * README, for the field's menu. `hint` is the README's filename, shown
+     * faintly beside the repo name.
      *
-     * @return array<int, array{value: string, label: string}>
+     * @return array<int, array{value: string, label: string, data: array{hint: string}}>
      */
     public function repos(): array
     {
@@ -93,7 +115,9 @@ class Readme extends Component
         }
 
         $cache = Craft::$app->getCache();
-        $cacheKey = 'scribe:repos:' . md5($token);
+        // Versioned, so an entry cached under an older shape of this list is
+        // passed over rather than served without its readme filenames.
+        $cacheKey = 'scribe:repos:2:' . md5($token);
 
         $repos = $cache->get($cacheKey);
         if ($repos === false) {
@@ -104,40 +128,81 @@ class Readme extends Component
         return $repos;
     }
 
+    /**
+     * Repos with a README, one GraphQL request per 100. The REST list endpoint
+     * doesn't report whether a repo has a README, and checking each one costs a
+     * request per repo — a stall on every cache expiry, since the field's input
+     * renders off this list. GraphQL returns each repo's root tree alongside it,
+     * so the check is free.
+     */
     private function fetchRepos(): array
     {
         $out = [];
-        $perPage = 100;
+        $cursor = null;
         try {
-            // Page through /user/repos until a short page signals the end.
+            // Page until GraphQL says there's nothing after the cursor.
             for ($page = 1; $page <= 20; $page++) {
-                $response = Craft::createGuzzleClient()->get('https://api.github.com/user/repos', [
-                    'headers' => $this->apiHeaders('application/vnd.github+json'),
-                    'query' => [
-                        'per_page' => $perPage,
-                        'page' => $page,
-                        'sort' => 'full_name',
-                        'affiliation' => 'owner',
-                    ],
-                    'timeout' => 8,
+                $response = Craft::createGuzzleClient()->post('https://api.github.com/graphql', [
+                    'headers' => $this->apiHeaders('application/json'),
+                    'json' => ['query' => self::REPOS_QUERY, 'variables' => ['cursor' => $cursor]],
+                    'timeout' => 15,
                 ]);
                 $data = json_decode((string)$response->getBody(), true) ?: [];
-                foreach ($data as $repo) {
-                    if (!empty($repo['full_name'])) {
-                        $out[] = [
-                            'value' => $repo['full_name'],
-                            'label' => $repo['name'] ?? $repo['full_name'],
-                        ];
+                if (!empty($data['errors'][0]['message'])) {
+                    throw new \RuntimeException($data['errors'][0]['message']);
+                }
+
+                $repos = $data['data']['viewer']['repositories'] ?? [];
+                foreach ($repos['nodes'] ?? [] as $repo) {
+                    $readme = $this->readmeName($repo['root']['entries'] ?? []);
+                    if ($readme === null || empty($repo['nameWithOwner'])) {
+                        continue;
                     }
+                    $out[] = [
+                        'value' => $repo['nameWithOwner'],
+                        'label' => $repo['name'] ?? $repo['nameWithOwner'],
+                        'data' => ['hint' => $readme],
+                    ];
                 }
-                if (count($data) < $perPage) {
-                    break; // last page
+
+                if (empty($repos['pageInfo']['hasNextPage'])) {
+                    break;
                 }
+                $cursor = $repos['pageInfo']['endCursor'] ?? null;
             }
         } catch (\Throwable $e) {
             Craft::warning('Scribe repo list failed: ' . $e->getMessage(), __METHOD__);
         }
         return $out;
+    }
+
+    /**
+     * The README filename in a repo's root tree, or null if there isn't one.
+     * Matched the way GitHub resolves it: any case, richest markup extension
+     * first — so the name shown in the menu is the file that will be fetched.
+     *
+     * @param array<int, array{name?: string, type?: string}> $entries
+     */
+    private function readmeName(array $entries): ?string
+    {
+        // github/markup's preference order, most preferred first.
+        $extensions = ['md', 'markdown', 'mdown', 'mkdn', 'rst', 'textile', 'rdoc', 'org', 'creole', 'pod', 'txt', ''];
+
+        $name = null;
+        $rank = count($extensions);
+        foreach ($entries as $entry) {
+            if (($entry['type'] ?? '') !== 'blob'
+                || !preg_match('/^readme(?:\.([a-z0-9]+))?$/i', $entry['name'] ?? '', $m)
+            ) {
+                continue;
+            }
+            $entryRank = array_search(strtolower($m[1] ?? ''), $extensions, true);
+            if ($entryRank !== false && $entryRank < $rank) {
+                $name = $entry['name'];
+                $rank = $entryRank;
+            }
+        }
+        return $name;
     }
 
 

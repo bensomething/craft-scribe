@@ -2,7 +2,7 @@
 
 Pull a GitHub README into your content, sliced by heading, so your docs pages mirror a repo and stay in sync with a single source of truth.
 
-Scribe adds one field: pick a repository, then optionally choose a **Start From** and **End Before** heading to show just a section. In your templates, render it as HTML that matches your site.
+Scribe adds one field: pick a readme file, then optionally choose a **Start From** and **End Before** heading to show just a section. In your templates, render it as HTML that matches your site.
 
 > [!NOTE]
 > **Scribe is in beta.** It's feature-complete and safe to try, but the API, settings, and stored-value formats may still change before 1.0.0. Please [report anything you hit](https://github.com/bensomething/craft-scribe/issues).
@@ -31,11 +31,11 @@ Scribe talks to the GitHub API, so it needs a token.
    - **Permissions:** Repository → **Contents: Read-only** (this includes Metadata: Read).
 2. In **Settings → Plugins → Scribe**, paste the token into **GitHub Token**, or store it in an environment variable and reference it (e.g. `$GITHUB_TOKEN`).
 
-The field then lists your own repositories (public **and** private), and Scribe will only ever fetch repos owned by that token account.
+The field then lists the readme files in your own repositories (public **and** private) — repos without one are left out — and Scribe will only ever fetch repos owned by that token account.
 
 ## Usage
 
-Add a **Scribe** field to an entry type. When editing, choose a repository. The **Start From** / **End Before** menus populate from that repo's README headings (End Before only offers headings after Start From). Enable **Show Preview** in the field's settings to render the selected section right in the editor.
+Add a **Scribe** field to an entry type. When editing, choose a readme file — the menu lists each repository of yours that has one, with its filename alongside. The **Start From** / **End Before** menus then populate from that readme's headings (End Before only offers headings after Start From). Enable **Show Preview** in the field's settings to render the selected section right in the editor.
 
 Render it in a template:
 

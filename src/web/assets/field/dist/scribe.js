@@ -2,17 +2,20 @@
 (function ($) {
   'use strict';
 
-  // Repo picker + heading range for the Scribe field. When the repo changes,
-  // repopulate the Start From / End Before menus from the source's headings.
+  // Readme picker + heading range for the Scribe field. When the readme
+  // changes, repopulate the Start From / End Before menus from its headings.
   Craft.ScribeField = Garnish.Base.extend({
     $url: null,
     $startFrom: null,
     $endBefore: null,
     $range: null,
+    $spinner: null,
     $preview: null,
     $previewBody: null,
     settings: null,
     headings: null,
+    loadedUrl: '',
+    busy: 0,
 
     init: function (id, settings) {
       this.settings = settings;
@@ -21,13 +24,18 @@
       this.$startFrom = $('#' + id + '-startFrom');
       this.$endBefore = $('#' + id + '-endBefore');
       this.$range = this.$url.closest('.scribe-field').find('[data-scribe-range]');
+      this.$spinner = this.$url.closest('.scribe-field').find('[data-scribe-spinner]');
       this.$preview = this.$url.closest('.scribe').find('[data-scribe-preview]');
       this.$previewBody = this.$preview.find('[data-scribe-preview-body]');
+      this.loadedUrl = this.$url.val() || '';
 
       this.addListener(this.$url, 'change', 'onChange');
       this.addListener(this.$startFrom, 'change', 'onStartChange');
       this.addListener(this.$endBefore, 'change', 'refreshPreview');
-      this.hookRepoClear();
+      this.whenSelectized(function (selectize) {
+        this.hookRepoClear(selectize);
+        this.showFilenameOnItem(selectize);
+      });
 
       // Render the heading menus from the server-provided headings.
       if (this.headings.length) {
@@ -40,20 +48,49 @@
       this.refreshPreview();
     },
 
-    // Let emptying the repo box clear the field. Craft's select_on_focus plugin
-    // restores the value on blur, so we track when the box is emptied and
-    // force-clear on the next frame, after that restore runs.
-    // (Selectize is set up by Craft's macro just after this, so retry until ready.)
-    hookRepoClear: function () {
+    // Craft's macro selectizes the picker just after this script runs, so retry
+    // until it's there. Fields rendered without a token have no picker at all,
+    // so there's nothing to wait for.
+    whenSelectized: function (callback) {
       var self = this;
       var el = this.$url[0];
+      if (!el) {
+        return;
+      }
       if (!el.selectize) {
         Garnish.requestAnimationFrame(function () {
-          self.hookRepoClear();
+          self.whenSelectized(callback);
         });
         return;
       }
-      var selectize = el.selectize;
+      callback.call(this, el.selectize);
+    },
+
+    // Craft renders the filename hint on dropdown options but not on the
+    // selected item — its label helper takes a showHint flag, passed false for
+    // items. Swap in a renderer that keeps it, in Craft's own markup.
+    showFilenameOnItem: function (selectize) {
+      selectize.settings.render.item = function (data) {
+        var html = '<span>' + Craft.escapeHtml(data.text || '') + '</span>';
+        if (data.hint) {
+          // En dash separator, as Craft's own hints use.
+          html += '<span class="light">\u2013 ' + Craft.escapeHtml(data.hint) + '</span>';
+        }
+        return '<div class="item"><div class="flex flex-nowrap">' + html + '</div></div>';
+      };
+      // Re-render the value Craft already drew and cached under its renderer.
+      selectize.clearCache('item');
+      var value = selectize.getValue();
+      if (value) {
+        selectize.setValue(value, true); // silent: not a change the field made
+      }
+    },
+
+    // Let emptying the repo box clear the field. Craft's select_on_focus plugin
+    // restores the value on blur, so we track when the box is emptied and
+    // force-clear on the next frame, after that restore runs.
+    hookRepoClear: function (selectize) {
+      var self = this;
       var $input = selectize.$control_input;
       var emptied = false;
 
@@ -74,21 +111,49 @@
       });
     },
 
+    // True while the picker's own text box holds focus. Checked against the
+    // document rather than a flag of our own, since selectize clears the value
+    // before it marks itself focused.
+    isPickerFocused: function () {
+      var selectize = this.$url[0] && this.$url[0].selectize;
+      return !!selectize && selectize.$control_input[0] === document.activeElement;
+    },
+
     onChange: function () {
-      var url = this.$url.val();
+      var url = this.$url.val() || '';
+      // Focusing the picker empties it (Craft's select_on_focus plugin, which
+      // puts the value back on blur), firing a change for a value the user
+      // hasn't touched. Neither half of that is a readme change, so don't tear
+      // the range and preview down and refetch them around a focus.
+      if (!url && this.isPickerFocused()) {
+        return;
+      }
+      if (url === this.loadedUrl) {
+        return;
+      }
+      this.loadedUrl = url;
+
       if (!url) {
         this.$range.addClass('hidden');
-        this.$preview.addClass('hidden');
         this.headings = [];
         this.$startFrom.val('');
         this.$endBefore.val('');
+        this.refreshPreview(); // hides the pane and drops any pending fetch
         return;
       }
       this.loadHeadings(url);
     },
 
+    // Spin while any request is in flight. Counted, since the headings and
+    // preview fetches overlap.
+    setBusy: function (delta) {
+      this.busy = Math.max(0, this.busy + delta);
+      this.$spinner.toggleClass('spinning', this.busy > 0);
+    },
+
     loadHeadings: function (url) {
       var self = this;
+      this.setBusy(1);
       Craft.sendActionRequest('POST', this.settings.headingsAction, {
         data: { url: url },
       })
@@ -100,7 +165,10 @@
         })
         .finally(function () {
           self.$range.removeClass('hidden');
+          // Hand over before releasing, so the spinner runs on unbroken into
+          // the preview fetch this queues.
           self.refreshPreview();
+          self.setBusy(-1);
         });
     },
 
@@ -111,14 +179,23 @@
         return;
       }
       var self = this;
-      var url = this.$url.val();
+      // The loaded readme, not the picker's live value, which briefly empties
+      // while the picker has focus.
+      var url = this.loadedUrl;
       if (!url) {
+        this.dropQueuedPreview();
         this.$preview.addClass('hidden');
         return;
       }
       this.$preview.removeClass('hidden');
-      clearTimeout(this.previewTimer);
+      this.dropQueuedPreview();
+      // Hold the spinner from the moment the fetch is queued, so it doesn't
+      // blink out over the debounce. The hold passes to the request itself when
+      // the timer fires, and is released when that settles.
+      this.previewQueued = true;
+      this.setBusy(1);
       this.previewTimer = setTimeout(function () {
+        self.previewQueued = false;
         Craft.sendActionRequest('POST', self.settings.previewAction, {
           data: {
             url: url,
@@ -131,8 +208,21 @@
           })
           .catch(function () {
             self.$previewBody.html('');
+          })
+          .finally(function () {
+            self.setBusy(-1);
           });
       }, 300);
+    },
+
+    // Cancel a preview fetch that's queued but hasn't fired, releasing its hold
+    // on the spinner. Anything already in flight releases itself.
+    dropQueuedPreview: function () {
+      clearTimeout(this.previewTimer);
+      if (this.previewQueued) {
+        this.previewQueued = false;
+        this.setBusy(-1);
+      }
     },
 
     populate: function (headings) {
@@ -140,7 +230,9 @@
       // Start From offers every heading, keeping the current choice if still valid.
       var current = this.$startFrom.val();
       var keep = this.headings.some(function (h) { return h.value === current; });
-      this.$startFrom.html(this.optionsHtml(this.headings)).val(keep ? current : '');
+      this.$startFrom
+        .html(this.optionsHtml(this.headings, this.settings.startPlaceholder))
+        .val(keep ? current : '');
       // End Before is derived from Start From.
       this.refreshEndBefore();
     },
@@ -160,13 +252,15 @@
 
       var current = this.$endBefore.val();
       var keep = allowed.some(function (h) { return h.value === current; });
-      this.$endBefore.html(this.optionsHtml(allowed)).val(keep ? current : '');
+      this.$endBefore
+        .html(this.optionsHtml(allowed, this.settings.endPlaceholder))
+        .val(keep ? current : '');
     },
 
-    optionsHtml: function (headings) {
-      // Blank option carries a non-breaking space so an empty selection keeps
-      // the select's line full height, with no gap below it.
-      var html = '<option value="">' + String.fromCharCode(160) + '</option>';
+    optionsHtml: function (headings, placeholder) {
+      // The blank option doubles as the menu's placeholder, since these menus
+      // have no visible label.
+      var html = '<option value="">' + Craft.escapeHtml(placeholder || '') + '</option>';
       headings.forEach(function (h) {
         // Indent sub-headings (h3+) under their section with non-breaking spaces.
         var depth = Math.max(0, (h.level || 2) - 2);

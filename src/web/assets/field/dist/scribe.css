@@ -11,9 +11,19 @@
   gap: 1rem;
 }
 
-/* One row: fixed repo, then Start From / End Before butted up against it. */
+/* One row: fixed repo, then Start From / End Before butted up against it, then
+   the spinner. The spinner leaves the layout entirely when idle, rather than
+   holding an empty slot and the row gap that comes with it. */
 .scribe-field > .scribe-repo {
   flex: 0 0 13rem;
+}
+.scribe-field > .spinner {
+  display: none;
+  flex: 0 0 24px;
+  color: var(--medium-text-color);
+}
+.scribe-field > .spinner.spinning {
+  display: inline-flex;
 }
 .scribe-field > .scribe-range {
   display: flex;
@@ -59,6 +69,29 @@
   min-width: 0;
   max-width: 100%;
 }
+/* The selected value carries the filename too, so the truncating happens inside
+   it: the repo name gives way first and the filename stays whole. (Craft's own
+   .flex-nowrap sets flex-wrap: wrap, so nowrap is set here.) */
+.scribe-field .selectize-input > .item > .flex {
+  min-width: 0;
+  flex-wrap: nowrap;
+}
+.scribe-field .selectize-input > .item > .flex > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.scribe-field .selectize-input > .item > .flex > .light {
+  flex: 0 0 auto;
+}
+
+/* Cap the readme menu at roughly eight rows, rather than Craft's 70vh. The
+   dropdown is appended to the body, so it's reached by its own class (set via
+   dropdownClass) instead of the field's. Capping max-height — not Craft's
+   dropdownSize option — keeps the menu shrinking to fit as a search narrows it. */
+.selectize-dropdown.scribe-dropdown .selectize-dropdown-content {
+  max-height: 17rem;
+}
 
 /* Native heading selects: fill their column and truncate long labels (chevron
    then sits at the edge). Height is left to Craft's own .select sizing. */
@@ -77,8 +110,10 @@
   .scribe-field > .scribe-repo {
     flex-basis: 100%;
   }
+  /* Fill the row rather than claim all of it, so the spinner stays alongside
+     End Before instead of wrapping to a line of its own. */
   .scribe-field > .scribe-range {
-    flex-basis: 100%;
+    flex: 1 1 0;
   }
   .scribe-field > .scribe-range > .scribe-col {
     flex: 1 1 0;
@@ -95,14 +130,6 @@
   }
 }
 
-/* No stray top margin on the inline fields, and keep their labels on one line. */
-.scribe-field .field {
-  margin-top: 0;
-}
-.scribe-field .heading > label {
-  white-space: nowrap;
-}
-
 /* Preview pane (Show Preview). Light readable defaults for the fetched HTML,
    since the site's own CSS isn't loaded in the CP. */
 .scribe-preview {
@@ -115,17 +142,59 @@
   display: none;
 }
 .scribe-preview > summary {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   cursor: pointer;
   padding: 8px 12px;
   font-weight: 600;
   color: var(--medium-text-color);
+  /* Prefixed too, for Safari before 17.4. */
+  -webkit-user-select: none;
   user-select: none;
+  list-style: none;
+  /* Held transparent while closed so the header keeps its height when the
+     open-state border below arrives. */
+  border-bottom: 1px solid transparent;
+}
+.scribe-preview[open] > summary {
+  border-bottom-color: var(--hairline-color);
+}
+
+/* Swap the native marker — whose glyph is a different width in each state — for
+   a caret in a fixed square box. Rotating it can't move "Preview", since
+   transforms don't affect layout. */
+.scribe-preview > summary::-webkit-details-marker {
+  display: none;
+}
+.scribe-preview > summary::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 0.6875rem;
+  height: 0.6875rem;
+  background: currentColor;
+  clip-path: polygon(28% 8%, 28% 92%, 84% 50%);
+  transition: transform 0.15s ease;
+}
+.scribe-preview[open] > summary::before {
+  transform: rotate(90deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .scribe-preview > summary::before {
+    transition: none;
+  }
 }
 .scribe-preview-body {
-  padding: 0 16px 12px;
+  padding: 12px 16px;
   max-height: 24rem;
   overflow: auto;
   overscroll-behavior: none;
+}
+/* The padding sets the gap under the header on its own — the fetched content
+   leads with a heading or paragraph carrying a top margin of its own, which
+   would otherwise stack on top of it. */
+.scribe-preview-body > :first-child {
+  margin-top: 0;
 }
 .scribe-preview-body h1,
 .scribe-preview-body h2,
