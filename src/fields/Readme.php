@@ -8,6 +8,7 @@ use bensomething\scribe\web\assets\field\ScribeFieldAsset;
 use Craft;
 use craft\base\ElementInterface;
 use craft\base\Field;
+use craft\helpers\Html;
 use craft\helpers\Json;
 use yii\db\Schema;
 
@@ -76,6 +77,22 @@ class Readme extends Field
 
     protected function inputHtml(mixed $value, ?ElementInterface $element, bool $inline): string
     {
+        return $this->fieldHtml($value, false);
+    }
+
+    /**
+     * Craft renders static fields (revisions, read-only elements) with the JS
+     * buffer discarded, so selectize never initialises — and since it's what
+     * replaces the select it hides on setup, the readme menu would render
+     * invisible. Fall back to a plain menu that stands on its own.
+     */
+    public function getStaticHtml(mixed $value, ElementInterface $element): string
+    {
+        return Html::disableInputs(fn() => $this->fieldHtml($value, true)) ?? '';
+    }
+
+    private function fieldHtml(mixed $value, bool $isStatic): string
+    {
         /** @var ReadmeValue $value */
         $view = Craft::$app->getView();
         $view->registerAssetBundle(ScribeFieldAsset::class);
@@ -87,20 +104,22 @@ class Readme extends Field
             ? $service->render($value->url, $value->startFrom, $value->endBefore)
             : null;
 
-        $view->registerJs(sprintf(
-            'new Craft.ScribeField(%s, %s);',
-            Json::encode($view->namespaceInputId($id)),
-            Json::encode([
-                'headingsAction' => 'scribe/headings',
-                'previewAction' => 'scribe/preview',
-                'preview' => $this->showPreview,
-                'headings' => $headings,
-                // Placeholders for the heading menus' blank option, which stands
-                // in for the labels the field doesn't show.
-                'startPlaceholder' => Craft::t('scribe', 'Start from…'),
-                'endPlaceholder' => Craft::t('scribe', 'End before…'),
-            ])
-        ));
+        if (!$isStatic) {
+            $view->registerJs(sprintf(
+                'new Craft.ScribeField(%s, %s);',
+                Json::encode($view->namespaceInputId($id)),
+                Json::encode([
+                    'headingsAction' => 'scribe/headings',
+                    'previewAction' => 'scribe/preview',
+                    'preview' => $this->showPreview,
+                    'headings' => $headings,
+                    // Placeholders for the heading menus' blank option, which stands
+                    // in for the labels the field doesn't show.
+                    'startPlaceholder' => Craft::t('scribe', 'Start from…'),
+                    'endPlaceholder' => Craft::t('scribe', 'End before…'),
+                ])
+            ));
+        }
 
         return $view->renderTemplate('scribe/_field/input.twig', [
             'id' => $id,
@@ -111,6 +130,7 @@ class Readme extends Field
             'previewHtml' => $previewHtml,
             'repos' => $service->repos(),
             'headings' => $headings,
+            'isStatic' => $isStatic,
         ]);
     }
 

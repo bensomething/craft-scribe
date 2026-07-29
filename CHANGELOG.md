@@ -1,5 +1,11 @@
 # Release Notes for Scribe
 
+## 1.0.0-beta.3 - 2026-07-29
+
+### Fixed
+
+- The readme menu was missing wherever the field renders statically, such as a revision, since Craft discards the JavaScript that sets the menu up there.
+
 ## 1.0.0-beta.2 - 2026-07-29
 
 ### Added

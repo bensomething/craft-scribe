@@ -35,14 +35,35 @@
 <div class="scribe">
 <div class="scribe-field">
     <div class="scribe-repo">
-        {{ forms.selectize({
-            id: id ~ '-url',
-            name: name ~ '[url]',
-            options: repoOptions,
-            value: value.url,
-            inputAttributes: { aria: { label: urlLabel } },
-            selectizeOptions: { dropdownClass: 'scribe-dropdown' },
-        }) }}
+        {% if isStatic %}
+            {# Selectize hides the select it's given and replaces it on setup,
+               but a static render discards the JS that would do it — so the
+               menu has to be a plain one here. Its filename hint travels as a
+               data attribute selectize reads, so fold that into the label. #}
+            {% set staticOptions = [] %}
+            {% for o in repoOptions %}
+                {% set staticOptions = staticOptions|merge([{
+                    label: o.data.hint is defined ? o.label ~ ' – ' ~ o.data.hint : o.label,
+                    value: o.value,
+                }]) %}
+            {% endfor %}
+            {{ forms.select({
+                id: id ~ '-url',
+                name: name ~ '[url]',
+                options: staticOptions,
+                value: value.url,
+                inputAttributes: { aria: { label: urlLabel } },
+            }) }}
+        {% else %}
+            {{ forms.selectize({
+                id: id ~ '-url',
+                name: name ~ '[url]',
+                options: repoOptions,
+                value: value.url,
+                inputAttributes: { aria: { label: urlLabel } },
+                selectizeOptions: { dropdownClass: 'scribe-dropdown' },
+            }) }}
+        {% endif %}
     </div>
 
     <div class="scribe-range{{ value.isEmpty ? ' hidden' }}" data-scribe-range>

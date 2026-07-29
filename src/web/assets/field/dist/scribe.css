@@ -93,13 +93,14 @@
   max-height: 17rem;
 }
 
-/* Native heading selects: fill their column and truncate long labels (chevron
-   then sits at the edge). Height is left to Craft's own .select sizing. */
-.scribe-field > .scribe-range > .scribe-col .select,
-.scribe-field > .scribe-range > .scribe-col .select select {
+/* Native selects — the heading menus, plus the readme menu in a static render:
+   fill their column and truncate long labels (chevron then sits at the edge).
+   Height is left to Craft's own .select sizing. */
+.scribe-field .select,
+.scribe-field .select select {
   width: 100%;
 }
-.scribe-field > .scribe-range > .scribe-col .select select {
+.scribe-field .select select {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
