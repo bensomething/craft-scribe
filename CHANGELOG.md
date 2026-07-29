@@ -1,6 +1,11 @@
 # Release Notes for Scribe
 
-## 1.0.0-beta.6 - 2026-07-29
+## Unreleased
+
+### Changed
+
+- The preview pane remembers whether it was left open or closed, per field.
+- Scrolling past the end of the preview pane carries on scrolling the page.
 
 ### Fixed
 

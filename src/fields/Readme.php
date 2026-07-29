@@ -117,6 +117,8 @@ class Readme extends Field
                     'previewAction' => 'scribe/preview',
                     'preview' => $this->showPreview,
                     'hideImages' => $this->hideImages,
+                    // Keys the remembered open/closed state of the preview pane.
+                    'handle' => $this->handle,
                     'headings' => $headings,
                     // Placeholders for the heading menus' blank option, which stands
                     // in for the labels the field doesn't show.

@@ -15,6 +15,7 @@
     settings: null,
     headings: null,
     loadedUrl: '',
+    previewKey: null,
     busy: 0,
 
     init: function (id, settings) {
@@ -28,6 +29,7 @@
       this.$preview = this.$url.closest('.scribe').find('[data-scribe-preview]');
       this.$previewBody = this.$preview.find('[data-scribe-preview-body]');
       this.loadedUrl = this.$url.val() || '';
+      this.restorePreviewState();
 
       this.addListener(this.$url, 'change', 'onChange');
       this.addListener(this.$startFrom, 'change', 'onStartChange');
@@ -41,6 +43,27 @@
       if (this.headings.length) {
         this.populate(this.headings);
       }
+    },
+
+    // Carry the pane's open/closed state across page loads, keyed on the field
+    // so every element edited through it opens the way it was last left. The
+    // markup opens the pane whenever there's something to preview, which stands
+    // as the default until the editor closes it themselves.
+    restorePreviewState: function () {
+      if (!this.$preview.length || !this.settings.handle) {
+        return;
+      }
+      this.previewKey = 'scribe.preview.' + this.settings.handle;
+      var open = Craft.getLocalStorage(this.previewKey, null);
+      if (open !== null) {
+        this.$preview.prop('open', !!open);
+      }
+      // Bound straight to the element: toggle doesn't bubble.
+      this.addListener(this.$preview, 'toggle', 'onPreviewToggle');
+    },
+
+    onPreviewToggle: function () {
+      Craft.setLocalStorage(this.previewKey, this.$preview.prop('open'));
     },
 
     onStartChange: function () {
