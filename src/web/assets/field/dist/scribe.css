@@ -131,13 +131,16 @@
   }
 }
 
-/* Preview pane (Show Preview). Light readable defaults for the fetched HTML,
-   since the site's own CSS isn't loaded in the CP. */
+/* Preview pane (Show Preview). Readable defaults for the fetched HTML, since the
+   site's own CSS isn't loaded in the CP. The surface is `--pane-bg` rather than
+   `--white`: Craft declares `--pane-bg: var(--white)`, so it's the same colour on a
+   stock CP, but `--white` is a fixed literal that a colour-mode plugin can't move,
+   which left the panel bright white under a dark control panel. */
 .scribe-preview {
   margin-top: 1rem;
   border: 1px solid var(--hairline-color);
   border-radius: var(--large-border-radius, 5px);
-  background: var(--white, #fff);
+  background: var(--pane-bg, #fff);
 }
 .scribe-preview.hidden {
   display: none;

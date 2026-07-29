@@ -1,5 +1,11 @@
 # Release Notes for Scribe
 
+## 1.0.0-beta.6 - 2026-07-29
+
+### Fixed
+
+- The preview pane took its background from `--white` rather than `--pane-bg`, leaving it bright under a control panel themed dark. Unchanged on a stock control panel, where the two are the same colour.
+
 ## 1.0.0-beta.5 - 2026-07-29
 
 ### Changed
