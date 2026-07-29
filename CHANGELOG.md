@@ -1,5 +1,11 @@
 # Release Notes for Scribe
 
+## Unreleased
+
+### Changed
+
+- Images in a rendered README carry `loading="lazy"` and `decoding="async"`, unless the README set them itself.
+
 ## 1.0.0-beta.3 - 2026-07-29
 
 ### Fixed

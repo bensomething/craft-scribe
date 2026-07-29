@@ -348,6 +348,7 @@ class Readme extends Component
     /**
      * Prepare fetched README HTML for display in a single DOM pass:
      *  - absolutize repo-relative image/link URLs to their GitHub source
+     *  - defer image loading
      *  - swap code blocks for <!--CODEBLOCK:n--> placeholders, holding the
      *    rendered cards separately so their markup never round-trips DOMDocument.
      *
@@ -359,6 +360,7 @@ class Readme extends Component
         $xpath = new \DOMXPath($doc);
 
         $this->absolutizeUrls($xpath, $repo, $branch);
+        $this->deferImages($xpath);
 
         // GitHub wraps code blocks either as <div class="highlight highlight-source-xxx">
         // (language fences) or <div class="snippet-clipboard-content"> (plain
@@ -459,6 +461,26 @@ class Readme extends Component
             $abs = $this->absoluteUrl($a->getAttribute('href'), $repo, $branch, false);
             if ($abs !== null) {
                 $a->setAttribute('href', $abs);
+            }
+        }
+    }
+
+    /**
+     * Let images load off the critical path — a README's images are typically
+     * screenshots and badges, none of them worth blocking on. GitHub emits
+     * neither attribute, but anything the README set itself is left alone.
+     */
+    private function deferImages(\DOMXPath $xpath): void
+    {
+        foreach ($xpath->query('//img') as $img) {
+            if (!$img instanceof \DOMElement) {
+                continue;
+            }
+            if (!$img->hasAttribute('loading')) {
+                $img->setAttribute('loading', 'lazy');
+            }
+            if (!$img->hasAttribute('decoding')) {
+                $img->setAttribute('decoding', 'async');
             }
         }
     }
