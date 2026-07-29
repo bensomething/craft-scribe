@@ -201,6 +201,8 @@
             url: url,
             startFrom: self.$startFrom.val(),
             endBefore: self.$endBefore.val(),
+            // So the preview matches what the front end will render.
+            hideImages: self.settings.hideImages ? '1' : '',
           },
         })
           .then(function (response) {

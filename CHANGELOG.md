@@ -1,6 +1,10 @@
 # Release Notes for Scribe
 
-## Unreleased
+## 1.0.0-beta.4 - 2026-07-29
+
+### Added
+
+- **Hide Images** field setting, leaving images out of the rendered README along with any link or paragraph left empty by their going.
 
 ### Changed
 

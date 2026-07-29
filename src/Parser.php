@@ -158,6 +158,73 @@ class Parser
     }
 
     /**
+     * Remove every image, and with it anything left holding nothing: a
+     * <picture> goes whole (its <source> elements are no use alone), the link a
+     * badge sat in, and the paragraph a row of those links occupied. Removing
+     * the <img> alone would leave an empty but still focusable anchor, and a
+     * paragraph keeping its vertical margin where the badges were.
+     */
+    public function dropImages(string $html): string
+    {
+        $doc = $this->loadDoc($html);
+        $xpath = new \DOMXPath($doc);
+
+        // Snapshot first: removing nodes mutates the live list.
+        $nodes = [];
+        foreach ($xpath->query('//picture | //img[not(ancestor::picture)]') as $node) {
+            $nodes[] = $node;
+        }
+
+        foreach ($nodes as $node) {
+            $this->removeLeavingNothingEmpty($node);
+        }
+
+        return $this->innerHtml($doc);
+    }
+
+    /**
+     * Remove a node, then walk up removing each ancestor it left empty. Stops at
+     * the root wrapper, so a README that was nothing but an image renders empty
+     * rather than taking the wrapper with it.
+     */
+    private function removeLeavingNothingEmpty(\DOMNode $node): void
+    {
+        $parent = $node->parentNode;
+        if ($parent === null) {
+            return;
+        }
+        $parent->removeChild($node);
+
+        while (
+            $parent instanceof \DOMElement
+            && $parent->getAttribute('id') !== '__root'
+            && $parent->parentNode !== null
+            && !$this->holdsContent($parent)
+        ) {
+            $next = $parent->parentNode;
+            $next->removeChild($parent);
+            $parent = $next;
+        }
+    }
+
+    /**
+     * Whether an element still holds anything: text beyond whitespace, or any
+     * element of its own.
+     */
+    private function holdsContent(\DOMElement $element): bool
+    {
+        if (trim($element->textContent) !== '') {
+            return true;
+        }
+        foreach ($element->childNodes as $child) {
+            if ($child instanceof \DOMElement) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Parse README HTML into a DOMDocument, wrapped in a known root so inner
      * fragments have a stable container. Silences libxml's HTML5 gripes.
      */

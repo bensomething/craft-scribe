@@ -35,7 +35,9 @@ The field then lists the readme files in your own repositories (public **and** p
 
 ## Usage
 
-Add a **Scribe** field to an entry type. When editing, choose a readme file — the menu lists each repository of yours that has one, with its filename alongside. The **Start From** / **End Before** menus then populate from that readme's headings (End Before only offers headings after Start From). Enable **Show Preview** in the field's settings to render the selected section right in the editor.
+Add a **Scribe** field to an entry type. When editing, choose a readme file — the menu lists each repository of yours that has one, with its filename alongside. The **Start From** / **End Before** menus then populate from that readme's headings (End Before only offers headings after Start From).
+
+The field has two settings of its own. **Show Preview** renders the selected section right in the editor. **Hide Images** leaves images out of the rendered README, taking any link or paragraph they emptied with them — useful for dropping a badge row, and for private repositories, whose images your visitors can't load (GitHub serves them only to authenticated requests, so they'd show as broken).
 
 Render it in a template:
 

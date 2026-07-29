@@ -7,3 +7,11 @@
     name: 'showPreview',
     on: field.showPreview,
 }) }}
+
+{{ forms.lightswitchField({
+    label: 'Hide Images'|t('scribe'),
+    instructions: 'Leave images out of the rendered README, along with any link or paragraph left empty.'|t('scribe'),
+    id: 'hideImages',
+    name: 'hideImages',
+    on: field.hideImages,
+}) }}

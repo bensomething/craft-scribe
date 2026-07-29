@@ -20,6 +20,8 @@ class PreviewController extends Controller
             (string)$this->request->getParam('url', ''),
             $this->request->getParam('startFrom') ?: null,
             $this->request->getParam('endBefore') ?: null,
+            null,
+            (bool)$this->request->getParam('hideImages'),
         );
 
         return $this->asJson(['html' => $html]);

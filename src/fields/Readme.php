@@ -19,6 +19,7 @@ use yii\db\Schema;
 class Readme extends Field
 {
     public bool $showPreview = false;
+    public bool $hideImages = false;
 
     public static function displayName(): string
     {
@@ -42,6 +43,8 @@ class Readme extends Field
     public function normalizeValue(mixed $value, ?ElementInterface $element = null): mixed
     {
         if ($value instanceof ReadmeValue) {
+            // Re-stamp, in case the field's setting has changed since.
+            $value->hideImages = $this->hideImages;
             return $value;
         }
         if (is_string($value) && $value !== '') {
@@ -53,6 +56,7 @@ class Readme extends Field
             'url' => $value['url'] ?? null,
             'startFrom' => $value['startFrom'] ?? null,
             'endBefore' => $value['endBefore'] ?? null,
+            'hideImages' => $this->hideImages,
         ]);
     }
 
@@ -101,7 +105,7 @@ class Readme extends Field
         $service = Plugin::getInstance()->getReadme();
         $headings = (!$value->isEmpty()) ? $service->headings($value->url) : [];
         $previewHtml = ($this->showPreview && !$value->isEmpty())
-            ? $service->render($value->url, $value->startFrom, $value->endBefore)
+            ? $service->render($value->url, $value->startFrom, $value->endBefore, null, $this->hideImages)
             : null;
 
         if (!$isStatic) {
@@ -112,6 +116,7 @@ class Readme extends Field
                     'headingsAction' => 'scribe/headings',
                     'previewAction' => 'scribe/preview',
                     'preview' => $this->showPreview,
+                    'hideImages' => $this->hideImages,
                     'headings' => $headings,
                     // Placeholders for the heading menus' blank option, which stands
                     // in for the labels the field doesn't show.

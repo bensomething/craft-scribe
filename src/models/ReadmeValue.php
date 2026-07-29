@@ -15,6 +15,12 @@ class ReadmeValue extends Model
     public ?string $startFrom = null;
     public ?string $endBefore = null;
 
+    /**
+     * Carried over from the field's setting of the same name, since a value has
+     * no reference to the field that holds it.
+     */
+    public bool $hideImages = false;
+
     public function isEmpty(): bool
     {
         return trim((string)$this->url) === '';
@@ -31,7 +37,13 @@ class ReadmeValue extends Model
         if ($this->isEmpty()) {
             return null;
         }
-        $html = Plugin::getInstance()->getReadme()->render($this->url, $this->startFrom, $this->endBefore, $hideHeading);
+        $html = Plugin::getInstance()->getReadme()->render(
+            $this->url,
+            $this->startFrom,
+            $this->endBefore,
+            $hideHeading,
+            $this->hideImages,
+        );
         return $html !== null ? new Markup($html, 'UTF-8') : null;
     }
 

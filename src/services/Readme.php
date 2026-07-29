@@ -63,9 +63,15 @@ class Readme extends Component
      * @param string|null $startFrom heading slug to start at (inclusive)
      * @param string|null $endBefore heading slug to stop before (exclusive)
      * @param string|null $hideHeading drop a leading heading matching this text
+     * @param bool $hideImages leave images out altogether
      */
-    public function render(?string $source, ?string $startFrom = null, ?string $endBefore = null, ?string $hideHeading = null): ?string
-    {
+    public function render(
+        ?string $source,
+        ?string $startFrom = null,
+        ?string $endBefore = null,
+        ?string $hideHeading = null,
+        bool $hideImages = false,
+    ): ?string {
         $data = $this->data($source);
         if ($data === null) {
             return null;
@@ -80,6 +86,13 @@ class Readme extends Component
 
         if ($hideHeading) {
             $html = $this->parser()->dropLeadingHeading($html, $hideHeading);
+        }
+
+        // Stripped here rather than before caching, so the cached payload stays
+        // whole: the cache is keyed by repo alone, and two fields on the same
+        // README can disagree about this.
+        if ($hideImages) {
+            $html = $this->parser()->dropImages($html);
         }
 
         return $this->restoreCodeBlocks($html, $data['cards']);

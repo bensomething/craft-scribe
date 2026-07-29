@@ -141,4 +141,63 @@ HTML;
         $unchanged = $this->parser->dropLeadingHeading($section, 'Something Else');
         $this->assertStringContainsString('Requirements', $unchanged);
     }
+
+    public function testDropImagesRemovesABadgeRowWhole(): void
+    {
+        // How GitHub renders a line of badges: images in links, in one paragraph.
+        $html = '<p><a href="https://packagist.org/a"><img src="https://camo.githubusercontent.com/1" alt="Stable Version"></a>'
+            . "\n" . '<a href="https://packagist.org/b"><img src="https://camo.githubusercontent.com/2" alt="Total Downloads"></a></p>'
+            . '<p>Kept.</p>';
+
+        $dropped = $this->parser->dropImages($html);
+
+        $this->assertStringNotContainsString('<img', $dropped);
+        // The links the badges sat in, and their paragraph, go with them.
+        $this->assertStringNotContainsString('<a ', $dropped);
+        $this->assertStringNotContainsString('packagist.org', $dropped);
+        $this->assertStringContainsString('<p>Kept.</p>', $dropped);
+    }
+
+    public function testDropImagesKeepsTextAlongsideAnImage(): void
+    {
+        $html = '<p>Before <img src="shot.png" alt="Screenshot"> after.</p>';
+
+        $dropped = $this->parser->dropImages($html);
+
+        $this->assertStringNotContainsString('<img', $dropped);
+        $this->assertStringContainsString('Before', $dropped);
+        $this->assertStringContainsString('after.', $dropped);
+    }
+
+    public function testDropImagesKeepsALinkThatHasItsOwnText(): void
+    {
+        $html = '<p><a href="/docs"><img src="icon.png" alt=""> Read the docs</a></p>';
+
+        $dropped = $this->parser->dropImages($html);
+
+        $this->assertStringNotContainsString('<img', $dropped);
+        $this->assertStringContainsString('Read the docs', $dropped);
+        $this->assertStringContainsString('href="/docs"', $dropped);
+    }
+
+    public function testDropImagesTakesPictureElementsWhole(): void
+    {
+        $html = '<p><picture><source media="(prefers-color-scheme: dark)" srcset="dark.png">'
+            . '<img src="light.png" alt="Diagram"></picture></p><p>Kept.</p>';
+
+        $dropped = $this->parser->dropImages($html);
+
+        $this->assertStringNotContainsString('<picture', $dropped);
+        $this->assertStringNotContainsString('<source', $dropped);
+        $this->assertStringNotContainsString('dark.png', $dropped);
+        $this->assertStringContainsString('<p>Kept.</p>', $dropped);
+    }
+
+    public function testDropImagesLeavesImagelessHtmlAlone(): void
+    {
+        $section = $this->parser->slice($this->fixture(), 'requirements', 'installation');
+        $this->assertNotNull($section);
+
+        $this->assertStringContainsString('Craft CMS 5', $this->parser->dropImages($section));
+    }
 }
