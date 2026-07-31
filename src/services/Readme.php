@@ -166,9 +166,9 @@ class Readme extends Component
     /**
      * Repos with a README, one GraphQL request per 100. The REST list endpoint
      * doesn't report whether a repo has a README, and checking each one costs a
-     * request per repo — a stall on every cache expiry, since the field's input
-     * renders off this list. GraphQL returns each repo's root tree alongside it,
-     * so the check is free.
+     * request per repo — expensive enough that the field asks for this list over
+     * Ajax when its menu is opened, rather than on the page render. GraphQL
+     * returns each repo's root tree alongside it, so the check is free.
      */
     private function fetchRepos(): array
     {

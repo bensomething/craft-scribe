@@ -115,6 +115,7 @@ class Readme extends Field
                 Json::encode([
                     'headingsAction' => 'scribe/headings',
                     'previewAction' => 'scribe/preview',
+                    'reposAction' => 'scribe/repos',
                     'preview' => $this->showPreview,
                     'hideImages' => $this->hideImages,
                     // Keys the remembered open/closed state of the preview pane.
@@ -135,7 +136,6 @@ class Readme extends Field
             'hasToken' => $service->hasToken(),
             'showPreview' => $this->showPreview,
             'previewHtml' => $previewHtml,
-            'repos' => $service->repos(),
             'headings' => $headings,
             'isStatic' => $isStatic,
         ]);

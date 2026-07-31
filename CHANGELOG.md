@@ -1,5 +1,11 @@
 # Release Notes for Scribe
 
+## Unreleased
+
+### Changed
+
+- The readme menu fetches the repository list when it's first opened, rather than on every page the field renders on. Building that list costs a GitHub request per hundred repositories, which held up an entry with a Scribe field on it whenever the cache was cold. Until the menu is opened, a saved readme shows as `owner/repo` rather than the repository's name and filename.
+
 ## 1.0.0-beta.6 - 2026-07-29
 
 ### Changed

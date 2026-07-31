@@ -16,6 +16,7 @@
     headings: null,
     loadedUrl: '',
     previewKey: null,
+    reposLoaded: false,
     busy: 0,
 
     init: function (id, settings) {
@@ -36,6 +37,7 @@
       this.addListener(this.$endBefore, 'change', 'refreshPreview');
       this.whenSelectized(function (selectize) {
         this.hookRepoClear(selectize);
+        this.hookRepoLoad(selectize);
         this.showFilenameOnItem(selectize);
       });
 
@@ -132,6 +134,61 @@
           });
         }
       });
+    },
+
+    // The field renders with nothing in the menu but its saved value, since
+    // building the repository list costs a GitHub request per hundred repos and
+    // holds the page up on a cold cache. Fetch it when the picker is first
+    // focused, which is the first moment the menu is read.
+    hookRepoLoad: function (selectize) {
+      var self = this;
+      this.addListener(selectize.$control_input, 'focus', function () {
+        self.loadRepos(selectize);
+      });
+    },
+
+    loadRepos: function (selectize) {
+      if (this.reposLoaded) {
+        return;
+      }
+      this.reposLoaded = true; // one attempt per field, hit or miss
+      var self = this;
+      this.setBusy(1);
+      Craft.sendActionRequest('POST', this.settings.reposAction)
+        .then(function (response) {
+          self.addRepos(selectize, (response.data && response.data.repos) || []);
+        })
+        .catch(function () {
+          // Nothing to show, but the saved value is still there to fall back on.
+        })
+        .finally(function () {
+          self.setBusy(-1);
+        });
+    },
+
+    // Merge the fetched list into the menu. The saved value is already in it as
+    // a bare owner/repo path, so that one is updated rather than added — an add
+    // is passed over for a value selectize already holds, which would leave the
+    // stand-in label in place of the repository's own name and filename hint.
+    addRepos: function (selectize, repos) {
+      repos.forEach(function (repo) {
+        var option = {
+          value: repo.value,
+          text: repo.label,
+          hint: (repo.data && repo.data.hint) || '',
+        };
+        if (selectize.options[option.value]) {
+          selectize.updateOption(option.value, option);
+        } else {
+          selectize.addOption(option);
+        }
+      });
+      // Redraw on the fetched list, opening the menu if the picker still holds
+      // focus — which it will, since the fetch was its own focus that started
+      // it. Passing false here doesn't leave an open menu alone: selectize
+      // closes it, which left the editor clicking a second time for the list
+      // they'd already asked for.
+      selectize.refreshOptions(this.isPickerFocused());
     },
 
     // True while the picker's own text box holds focus. Checked against the
