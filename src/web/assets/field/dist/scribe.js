@@ -9,6 +9,7 @@
     $startFrom: null,
     $endBefore: null,
     $range: null,
+    $note: null,
     $spinner: null,
     $preview: null,
     $previewBody: null,
@@ -26,11 +27,12 @@
       this.$startFrom = $('#' + id + '-startFrom');
       this.$endBefore = $('#' + id + '-endBefore');
       this.$range = this.$url.closest('.scribe-field').find('[data-scribe-range]');
+      this.$note = this.$url.closest('.scribe-field').find('[data-scribe-note]');
       this.$spinner = this.$url.closest('.scribe-field').find('[data-scribe-spinner]');
       this.$preview = this.$url.closest('.scribe').find('[data-scribe-preview]');
       this.$previewBody = this.$preview.find('[data-scribe-preview-body]');
       this.loadedUrl = this.$url.val() || '';
-      this.restorePreviewState();
+      this.hookPreviewState();
 
       this.addListener(this.$url, 'change', 'onChange');
       this.addListener(this.$startFrom, 'change', 'onStartChange');
@@ -41,31 +43,39 @@
         this.showFilenameOnItem(selectize);
       });
 
-      // Render the heading menus from the server-provided headings.
+      // Render the heading menus from the server-provided headings. Nothing to
+      // render without them, and the markup has already put the note in their
+      // place — repopulating would only clear a saved range the field is still
+      // holding, which a readme that failed to load should get back.
       if (this.headings.length) {
-        this.populate(this.headings);
+        this.populate(this.headings, true);
       }
     },
 
-    // Carry the pane's open/closed state across page loads, keyed on the field
-    // so every element edited through it opens the way it was last left. The
-    // markup opens the pane whenever there's something to preview, which stands
-    // as the default until the editor closes it themselves.
-    restorePreviewState: function () {
+    // Record the pane's open/closed state, keyed on the field so every element
+    // edited through it opens the way it was last left. Only recorded here: a
+    // cookie rather than local storage, so the field renders in the remembered
+    // state to begin with. Applying it from here meant a pane the editor had
+    // closed was painted open and then shut in front of them.
+    hookPreviewState: function () {
       if (!this.$preview.length || !this.settings.handle) {
         return;
       }
-      this.previewKey = 'scribe.preview.' + this.settings.handle;
-      var open = Craft.getLocalStorage(this.previewKey, null);
-      if (open !== null) {
-        this.$preview.prop('open', !!open);
-      }
+      // No dots: PHP turns those into underscores on the way in.
+      this.previewKey = 'scribe-preview-' + this.settings.handle;
       // Bound straight to the element: toggle doesn't bubble.
       this.addListener(this.$preview, 'toggle', 'onPreviewToggle');
     },
 
     onPreviewToggle: function () {
-      Craft.setLocalStorage(this.previewKey, this.$preview.prop('open'));
+      // A year out, since Craft's default is a cookie that dies with the
+      // browser session and this is a preference worth keeping. (Its maxAge
+      // option writes an attribute browsers don't recognise, so it's a date.)
+      var expires = new Date();
+      expires.setFullYear(expires.getFullYear() + 1);
+      Craft.setCookie(this.previewKey, this.$preview.prop('open') ? '1' : '0', {
+        expires: expires,
+      });
     },
 
     onStartChange: function () {
@@ -215,6 +225,7 @@
 
       if (!url) {
         this.$range.addClass('hidden');
+        this.setNote(''); // nothing chosen, so there's nothing to explain
         this.headings = [];
         this.$startFrom.val('');
         this.$endBefore.val('');
@@ -238,13 +249,15 @@
         data: { url: url },
       })
         .then(function (response) {
-          self.populate((response.data && response.data.headings) || []);
+          var data = response.data || {};
+          self.populate(data.headings || [], !!data.exists);
         })
         .catch(function () {
-          self.populate([]);
+          // The request itself failed, which is as good as an unreachable
+          // readme from here.
+          self.populate([], false);
         })
         .finally(function () {
-          self.$range.removeClass('hidden');
           // Hand over before releasing, so the spinner runs on unbroken into
           // the preview fetch this queues.
           self.refreshPreview();
@@ -267,7 +280,9 @@
         this.$preview.addClass('hidden');
         return;
       }
-      this.$preview.removeClass('hidden');
+      // The pane isn't shown ahead of the fetch: whether there's anything to
+      // show is the fetch's answer to give, and un-hiding first would flash an
+      // empty pane in front of a readme that turns out to be unreachable.
       this.dropQueuedPreview();
       // Hold the spinner from the moment the fetch is queued, so it doesn't
       // blink out over the debounce. The hold passes to the request itself when
@@ -286,10 +301,10 @@
           },
         })
           .then(function (response) {
-            self.$previewBody.html((response.data && response.data.html) || '');
+            self.showPreview(response.data ? response.data.html : null);
           })
           .catch(function () {
-            self.$previewBody.html('');
+            self.showPreview(null);
           })
           .finally(function () {
             self.setBusy(-1);
@@ -307,8 +322,22 @@
       }
     },
 
-    populate: function (headings) {
+    // `exists` says whether the readme was reached at all, which is what tells
+    // a readme with no headings apart from one that couldn't be loaded — both
+    // arrive here as an empty list.
+    populate: function (headings, exists) {
       this.headings = headings || [];
+      // A readme with no headings has no range to offer, so the menus leave the
+      // field rather than sit there holding nothing but their placeholders, and
+      // a note takes their place saying why.
+      this.$range.toggleClass('hidden', !this.headings.length);
+      this.setNote(
+        this.headings.length
+          ? ''
+          : exists
+            ? this.settings.noHeadingsText
+            : this.settings.loadFailedText
+      );
       // Start From offers every heading, keeping the current choice if still valid.
       var current = this.$startFrom.val();
       var keep = this.headings.some(function (h) { return h.value === current; });
@@ -337,6 +366,21 @@
       this.$endBefore
         .html(this.optionsHtml(allowed, this.settings.endPlaceholder))
         .val(keep ? current : '');
+    },
+
+    // Fill the pane, or take it out of the field when there's nothing to fill it
+    // with. Null html is a readme that couldn't be fetched — the note above says
+    // as much, so an empty pane under it would only repeat the point.
+    showPreview: function (html) {
+      this.$preview.toggleClass('hidden', html === null || html === undefined);
+      this.$previewBody.html(html || '');
+    },
+
+    // Text into the note, or empty to take it back out of the row. Set through
+    // .text(), so the note is a live region that announces itself only when
+    // there's something new in it.
+    setNote: function (text) {
+      this.$note.text(text || '').toggleClass('hidden', !text);
     },
 
     optionsHtml: function (headings, placeholder) {

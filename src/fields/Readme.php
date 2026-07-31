@@ -104,6 +104,9 @@ class Readme extends Field
         $id = $this->getInputId();
         $service = Plugin::getInstance()->getReadme();
         $headings = (!$value->isEmpty()) ? $service->headings($value->url) : [];
+        // Only asked so the note standing in for the heading menus can say which
+        // of the two empty cases it is. Free: the payload is already loaded.
+        $readmeExists = !$value->isEmpty() && $service->exists($value->url);
         $previewHtml = ($this->showPreview && !$value->isEmpty())
             ? $service->render($value->url, $value->startFrom, $value->endBefore, null, $this->hideImages)
             : null;
@@ -125,6 +128,10 @@ class Readme extends Field
                     // in for the labels the field doesn't show.
                     'startPlaceholder' => Craft::t('scribe', 'Start from…'),
                     'endPlaceholder' => Craft::t('scribe', 'End before…'),
+                    // The note that stands in for those menus when there's no
+                    // range to pick, in each of its two cases.
+                    'noHeadingsText' => Craft::t('scribe', 'No headings found'),
+                    'loadFailedText' => Craft::t('scribe', 'Couldn’t load this readme'),
                 ])
             ));
         }
@@ -137,8 +144,37 @@ class Readme extends Field
             'showPreview' => $this->showPreview,
             'previewHtml' => $previewHtml,
             'headings' => $headings,
+            'readmeExists' => $readmeExists,
+            'previewOpen' => $this->previewWasOpen(),
             'isStatic' => $isStatic,
         ]);
+    }
+
+    /**
+     * Whether the preview pane was last left open, as the field's own JS
+     * recorded it — open being the default until an editor closes it. Read
+     * here rather than applied by that JS, so the pane is painted in the state
+     * it's going to stay in: applying it afterwards flashed a closed pane open.
+     *
+     * Read straight from $_COOKIE, since the request's own cookie collection
+     * holds only the signed ones Craft wrote itself.
+     */
+    private function previewWasOpen(): bool
+    {
+        // Matched on the end of the name rather than rebuilt in full: Craft's
+        // JS helper prefixes whatever it's given with the system UID, joined by
+        // an underscore as of 5.10 and by a colon in earlier releases.
+        $suffix = 'scribe-preview-' . $this->handle;
+
+        foreach ($_COOKIE as $name => $value) {
+            if (str_ends_with($name, $suffix)) {
+                return $value !== '0';
+            }
+        }
+
+        // Open until an editor closes it themselves: a pane with something in
+        // it is worth seeing by default.
+        return true;
     }
 
     public function getElementValidationRules(): array

@@ -39,6 +39,21 @@
   min-width: 0;
 }
 
+/* Stands in for the heading menus when there's no range to pick. Held to a
+   control's height so the row keeps the height it has with the menus in it. */
+.scribe-field > .scribe-note {
+  display: flex;
+  align-items: center;
+  min-height: 34px;
+  /* Fainter than the control panel's lightest text: the note explains an empty
+     row rather than saying anything the editor has to act on. */
+  color: var(--light-text-color, #9aa5b1);
+  opacity: 0.7;
+}
+.scribe-field > .scribe-note.hidden {
+  display: none;
+}
+
 /* Repo (selectize): fill its column and truncate long names. Pin the control
    height too, so the chevron (positioned at 50% of it) doesn't shift on focus. */
 .scribe-field .selectize-control {

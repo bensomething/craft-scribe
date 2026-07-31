@@ -4,7 +4,13 @@
 
 ### Changed
 
-- The readme menu fetches the repository list when it's first opened, rather than on every page the field renders on. Building that list costs a GitHub request per hundred repositories, which held up an entry with a Scribe field on it whenever the cache was cold. Until the menu is opened, a saved readme shows as `owner/repo` rather than the repository's name and filename.
+- **Start From** and **End Before** give way to a note when a readme has no headings, or couldn't be fetched. Any range already saved against it is left alone.
+- The preview pane stays out of the field for a readme that couldn't be fetched.
+- The readme menu fetches the repository list when it's first opened, rather than on every page the field renders on. Until the menu is opened, a saved readme shows as `owner/repo` rather than the repository's name and filename.
+
+### Fixed
+
+- A preview pane left closed flashed open on page load. Panes closed before this update open once more, then remember as they did.
 
 ## 1.0.0-beta.6 - 2026-07-29
 

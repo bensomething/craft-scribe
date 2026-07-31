@@ -73,6 +73,9 @@ class Readme extends Component
 
     private ?Parser $parser = null;
 
+    /** @var array<string, array{html: string, cards: string[]}|null> */
+    private array $dataCache = [];
+
     private function parser(): Parser
     {
         return $this->parser ??= new Parser();
@@ -133,6 +136,16 @@ class Readme extends Component
         }
 
         return $this->parser()->headings($data['html']);
+    }
+
+    /**
+     * Whether a source's README can be fetched. Tells a README that simply has
+     * no headings apart from one that couldn't be reached — headings() reports
+     * both as an empty list.
+     */
+    public function exists(?string $source): bool
+    {
+        return $this->data($source) !== null;
     }
 
     /**
@@ -254,6 +267,22 @@ class Readme extends Component
      * @return array{html: string, cards: string[]}|null
      */
     private function data(?string $source): ?array
+    {
+        // Held for the request: rendering one field asks after the same README
+        // two or three times over — its headings, whether it's there at all,
+        // and the preview — and each ask is otherwise a trip to the cache.
+        $key = (string)$source;
+        if (!array_key_exists($key, $this->dataCache)) {
+            $this->dataCache[$key] = $this->loadData($source);
+        }
+
+        return $this->dataCache[$key];
+    }
+
+    /**
+     * @return array{html: string, cards: string[]}|null
+     */
+    private function loadData(?string $source): ?array
     {
         $repo = $this->parser()->normalizeRepo($source);
         if ($repo === null) {

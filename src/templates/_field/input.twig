@@ -9,6 +9,16 @@
 {% set startPlaceholder = 'Start from…'|t('scribe') %}
 {% set endPlaceholder = 'End before…'|t('scribe') %}
 
+{# What the note standing in for the heading menus says, in each of the two
+   cases that leave a chosen readme with no headings to offer. Empty while the
+   menus themselves are showing, or before a readme is chosen. #}
+{% set note = '' %}
+{% if not value.isEmpty and headings is empty %}
+    {% set note = readmeExists
+        ? 'No headings found'|t('scribe')
+        : 'Couldn’t load this readme'|t('scribe') %}
+{% endif %}
+
 {# Readme menu options: the placeholder and the saved value, nothing more.
    Building the repository list costs a GitHub request per hundred repos, and
    the menu isn't read until it's opened — so the field renders on what it
@@ -59,7 +69,9 @@
         {% endif %}
     </div>
 
-    <div class="scribe-range{{ value.isEmpty ? ' hidden' }}" data-scribe-range>
+    {# Hidden until there's a range to pick: no readme chosen, or one whose
+       headings the menus would have nothing to offer from. #}
+    <div class="scribe-range{{ headings is empty ? ' hidden' }}" data-scribe-range>
         <div class="scribe-col">
             {{ forms.select({
                 id: id ~ '-startFrom',
@@ -80,13 +92,18 @@
         </div>
     </div>
 
-    {# Only in the layout while a readme is being fetched, trailing the last
-       visible menu — End Before, or the readme picker while the range is
-       still hidden. #}
+    <div class="scribe-note{{ note ? '' : ' hidden' }}" role="status" data-scribe-note>{{ note }}</div>
+
+    {# Only in the layout while a readme is being fetched, trailing whatever is
+       last on the row — End Before, the note that stands in for it, or the
+       readme picker while neither is showing. #}
     <div class="spinner" role="status" aria-live="polite" aria-label="{{ 'Loading'|t('app') }}" data-scribe-spinner></div>
 </div>
 {% if showPreview %}
-<details class="scribe-preview{{ value.isEmpty ? ' hidden' }}" data-scribe-preview{% if not value.isEmpty %} open{% endif %}>
+{# Out of the field until there's something to preview: no readme chosen, or one
+   that couldn't be fetched — which the note above already accounts for, and
+   would leave nothing here but an empty pane. #}
+<details class="scribe-preview{{ not readmeExists ? ' hidden' }}" data-scribe-preview{% if readmeExists and previewOpen %} open{% endif %}>
     <summary>{{ 'Preview'|t('scribe') }}</summary>
     <div class="scribe-preview-body prose" data-scribe-preview-body>{{ previewHtml|raw }}</div>
 </details>

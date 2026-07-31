@@ -18,9 +18,13 @@ class HeadingsController extends Controller
         $this->requireAcceptsJson();
 
         $url = (string)$this->request->getParam('url', '');
+        $service = Plugin::getInstance()->getReadme();
 
         return $this->asJson([
-            'headings' => Plugin::getInstance()->getReadme()->headings($url),
+            'headings' => $service->headings($url),
+            // So the field can tell a readme with no headings apart from one it
+            // couldn't reach, which come back as the same empty list.
+            'exists' => $service->exists($url),
         ]);
     }
 }
