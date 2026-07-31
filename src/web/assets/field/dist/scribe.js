@@ -18,6 +18,7 @@
     loadedUrl: '',
     previewKey: null,
     reposLoaded: false,
+    typed: false,
     busy: 0,
 
     init: function (id, settings) {
@@ -131,9 +132,13 @@
 
       this.addListener($input, 'focus', function () {
         emptied = false;
+        // Focus fills the box with the selected repo's own text, which isn't a
+        // search the editor typed. addRepos needs to know the difference.
+        self.typed = false;
       });
       this.addListener($input, 'input', function () {
         emptied = $input.val() === '';
+        self.typed = true;
       });
       this.addListener($input, 'blur', function () {
         if (emptied) {
@@ -198,7 +203,25 @@
       // it. Passing false here doesn't leave an open menu alone: selectize
       // closes it, which left the editor clicking a second time for the list
       // they'd already asked for.
+      //
+      // Craft's select_on_focus plugin puts the selected repo's text in the
+      // search box on focus and stops selectize scoring against it — but only
+      // until the end of that tick, long before this list lands. Left alone,
+      // that untyped text is a live query by now, and would filter the list
+      // down to the one repo it names: the editor saw no list until they
+      // clicked away and back, which suspends scoring afresh. So suspend it
+      // again for this one redraw, exactly as the plugin does on focus, unless
+      // the editor has since typed a search that's theirs to be filtered by.
+      var score = selectize.settings.score;
+      if (!this.typed) {
+        selectize.settings.score = function () {
+          return function () {
+            return 1;
+          };
+        };
+      }
       selectize.refreshOptions(this.isPickerFocused());
+      selectize.settings.score = score;
     },
 
     // True while the picker's own text box holds focus. Checked against the

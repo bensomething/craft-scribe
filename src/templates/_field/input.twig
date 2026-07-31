@@ -26,7 +26,13 @@
    stand-in option with the repository's own name and readme filename. #}
 {% set repoOptions = [{ label: 'Select a readme file…'|t('scribe'), value: '' }] %}
 {% if value.url %}
-    {% set repoOptions = repoOptions|merge([{ label: value.url, value: value.url }]) %}
+    {# Labelled with the repository's own name, which is what the fetched list
+       calls it — so the menu reads the same before and after it loads, rather
+       than rewriting itself under the editor as they open it. #}
+    {% set repoOptions = repoOptions|merge([{
+        label: value.url|split('/')|last ?: value.url,
+        value: value.url,
+    }]) %}
 {% endif %}
 
 {# Heading menu options: each menu's own placeholder plus every heading in the

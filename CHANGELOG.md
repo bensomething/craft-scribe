@@ -6,10 +6,13 @@
 
 - **Start From** and **End Before** give way to a note when a readme has no headings, or couldn't be fetched. Any range already saved against it is left alone.
 - The preview pane stays out of the field for a readme that couldn't be fetched.
-- The readme menu fetches the repository list when it's first opened, rather than on every page the field renders on. Until the menu is opened, a saved readme shows as `owner/repo` rather than the repository's name and filename.
+- The readme menu names a repository's readme file only when it isn't called `README.md`.
+- The readme menu fetches the repository list when it's first opened, rather than on every page the field renders on. Until it's opened, a saved readme is named by its repository alone.
 
 ### Fixed
 
+- A repository list that failed to build was held for six hours, emptying the readme menu until it expired. It's now held for two minutes.
+- The repository list arrived filtered down to a single entry, leaving the menu looking empty until you clicked away and back into it.
 - A preview pane left closed flashed open on page load. Panes closed before this update open once more, then remember as they did.
 
 ## 1.0.0-beta.6 - 2026-07-29

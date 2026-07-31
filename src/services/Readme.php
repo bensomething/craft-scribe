@@ -165,12 +165,22 @@ class Readme extends Component
         $cache = Craft::$app->getCache();
         // Versioned, so an entry cached under an older shape of this list is
         // passed over rather than served without its readme filenames.
-        $cacheKey = 'scribe:repos:2:' . md5($token);
+        $cacheKey = 'scribe:repos:3:' . md5($token);
 
         $repos = $cache->get($cacheKey);
         if ($repos === false) {
-            $repos = $this->fetchRepos();
-            $cache->set($cacheKey, $repos, self::REPOS_CACHE_DURATION, new TagDependency(['tags' => self::CACHE_TAG]));
+            $fetched = $this->fetchRepos();
+            $repos = $fetched ?? [];
+            // Cache a fetched list for the full duration, a failed one for two
+            // minutes. GitHub answering a single request with a 502 shouldn't
+            // leave the menu empty for the rest of the day, which is what
+            // holding an empty list for six hours amounted to.
+            $cache->set(
+                $cacheKey,
+                $repos,
+                $fetched !== null ? self::REPOS_CACHE_DURATION : 120,
+                new TagDependency(['tags' => self::CACHE_TAG])
+            );
         }
 
         return $repos;
@@ -182,8 +192,14 @@ class Readme extends Component
      * request per repo — expensive enough that the field asks for this list over
      * Ajax when its menu is opened, rather than on the page render. GraphQL
      * returns each repo's root tree alongside it, so the check is free.
+     *
+     * Null if any request failed, so a list that came up short isn't taken for
+     * an account with nothing in it. A part-built list is dropped with it: half
+     * a menu reads as "that repo isn't there" rather than "ask me again".
+     *
+     * @return array<int, array{value: string, label: string, data: array{hint: string}}>|null
      */
-    private function fetchRepos(): array
+    private function fetchRepos(): ?array
     {
         $out = [];
         $cursor = null;
@@ -209,7 +225,10 @@ class Readme extends Component
                     $out[] = [
                         'value' => $repo['nameWithOwner'],
                         'label' => $repo['name'] ?? $repo['nameWithOwner'],
-                        'data' => ['hint' => $readme],
+                        // Named only when it isn't the file everyone expects,
+                        // so the hint marks out the repos worth a second look
+                        // rather than repeating README.md down the whole menu.
+                        'data' => ['hint' => strcasecmp($readme, 'README.md') === 0 ? '' : $readme],
                     ];
                 }
 
@@ -220,6 +239,7 @@ class Readme extends Component
             }
         } catch (\Throwable $e) {
             Craft::warning('Scribe repo list failed: ' . $e->getMessage(), __METHOD__);
+            return null;
         }
         return $out;
     }
