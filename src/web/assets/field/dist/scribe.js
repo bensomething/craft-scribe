@@ -10,34 +10,50 @@
     $endBefore: null,
     $range: null,
     $note: null,
+    $warning: null,
+    $warningText: null,
     $spinner: null,
+    $refresh: null,
     $preview: null,
     $previewBody: null,
     settings: null,
     headings: null,
+    missing: null,
     loadedUrl: '',
-    previewKey: null,
+    previewAnim: null,
     reposLoaded: false,
     typed: false,
+    refreshing: false,
     busy: 0,
 
     init: function (id, settings) {
       this.settings = settings;
       this.headings = settings.headings || [];
+      // The range's own headings, where the readme no longer has them. Held
+      // only while they're still the menus' choice, and only for the readme they
+      // were saved against.
+      this.missing = settings.missing || null;
       this.$url = $('#' + id + '-url');
       this.$startFrom = $('#' + id + '-startFrom');
       this.$endBefore = $('#' + id + '-endBefore');
       this.$range = this.$url.closest('.scribe-field').find('[data-scribe-range]');
       this.$note = this.$url.closest('.scribe-field').find('[data-scribe-note]');
       this.$spinner = this.$url.closest('.scribe-field').find('[data-scribe-spinner]');
+      // Beside the card rather than inside it, so it's reached from there rather
+      // than through it.
+      this.$warning = this.$url.closest('.scribe').siblings('[data-scribe-warning]');
+      this.$warningText = this.$warning.find('[data-scribe-warning-text]');
+      this.$refresh = this.$url.closest('.scribe').find('[data-scribe-refresh]');
       this.$preview = this.$url.closest('.scribe').find('[data-scribe-preview]');
       this.$previewBody = this.$preview.find('[data-scribe-preview-body]');
       this.loadedUrl = this.$url.val() || '';
       this.hookPreviewState();
+      this.hookPreviewAnimation();
 
       this.addListener(this.$url, 'change', 'onChange');
       this.addListener(this.$startFrom, 'change', 'onStartChange');
-      this.addListener(this.$endBefore, 'change', 'refreshPreview');
+      this.addListener(this.$endBefore, 'change', 'onEndChange');
+      this.addListener(this.$refresh, 'click', 'onRefresh');
       this.whenSelectized(function (selectize) {
         this.hookRepoClear(selectize);
         this.hookRepoLoad(selectize);
@@ -49,21 +65,65 @@
       // place — repopulating would only clear a saved range the field is still
       // holding, which a readme that failed to load should get back.
       if (this.headings.length) {
-        this.populate(this.headings, true);
+        this.populate(this.headings, true, this.missing);
       }
     },
 
-    // Record the pane's open/closed state, keyed on the field so every element
-    // edited through it opens the way it was last left. Only recorded here: a
-    // cookie rather than local storage, so the field renders in the remembered
-    // state to begin with. Applying it from here meant a pane the editor had
-    // closed was painted open and then shut in front of them.
-    hookPreviewState: function () {
-      if (!this.$preview.length || !this.settings.handle) {
+    // Drop what Scribe is holding for this readme and fetch it again. A readme
+    // is written on GitHub, and the field would otherwise show what was last
+    // heard of it there — up to a day ago, on the default cache duration. Only
+    // this one readme is dropped: the repository list, which is far dearer to
+    // rebuild, isn't what's being asked after.
+    onRefresh: function () {
+      var self = this;
+      // The loaded readme, not the picker's live value, which briefly empties
+      // while the picker has focus.
+      var url = this.loadedUrl;
+      if (!url || this.refreshing) {
         return;
       }
-      // No dots: PHP turns those into underscores on the way in.
-      this.previewKey = 'scribe-preview-' + this.settings.handle;
+      this.refreshing = true;
+      this.$refresh.prop('disabled', true);
+      this.setBusy(1);
+      Craft.sendActionRequest('POST', this.settings.refreshAction, {
+        data: {
+          url: url,
+          // Sent so the answer can say which of them the refetched readme has
+          // lost — the reckoning a page render makes for itself, and a refresh
+          // is as likely a moment as any to turn one up.
+          startFrom: this.$startFrom.val(),
+          endBefore: this.$endBefore.val(),
+        },
+      })
+        .then(function (response) {
+          var data = response.data || {};
+          self.populate(data.headings || [], !!data.exists, data.missing);
+        })
+        .catch(function () {
+          // Nothing came back, so nothing changes: the field goes on showing the
+          // readme it was already showing.
+        })
+        .finally(function () {
+          self.refreshing = false;
+          self.$refresh.prop('disabled', false);
+          // Hand over before releasing, so the spinner runs on unbroken into the
+          // preview fetch this queues.
+          self.refreshPreview();
+          self.setBusy(-1);
+        });
+    },
+
+    // Record the pane's open/closed state, under a key PHP built from this
+    // instance's own namespaced id, so a field sitting on the page more than
+    // once — in each block of a Matrix, say — is remembered a block at a time.
+    // Only recorded here: a cookie rather than local storage, so the field
+    // renders in the remembered state to begin with. Applying it from here meant
+    // a pane the editor had closed was painted open and then shut in front of
+    // them.
+    hookPreviewState: function () {
+      if (!this.$preview.length || !this.settings.previewKey) {
+        return;
+      }
       // Bound straight to the element: toggle doesn't bubble.
       this.addListener(this.$preview, 'toggle', 'onPreviewToggle');
     },
@@ -74,13 +134,111 @@
       // option writes an attribute browsers don't recognise, so it's a date.)
       var expires = new Date();
       expires.setFullYear(expires.getFullYear() + 1);
-      Craft.setCookie(this.previewKey, this.$preview.prop('open') ? '1' : '0', {
+      Craft.setCookie(this.settings.previewKey, this.$preview.prop('open') ? '1' : '0', {
         expires: expires,
       });
     },
 
+    // Open and close the pane on an animation of its own. A details element has
+    // none — only the newest browsers can transition one, and the CP runs in
+    // more than those — so the toggle's click is taken over: opening happens
+    // first and the pane grows into place, and closing runs that backwards and
+    // shuts the pane at the end of it.
+    hookPreviewAnimation: function () {
+      if (!this.$previewBody.length || !this.$previewBody[0].animate) {
+        return;
+      }
+      this.addListener(this.$preview.children('summary'), 'click', 'onPreviewClick');
+    },
+
+    onPreviewClick: function (ev) {
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        return; // theirs to open in one step, as it would without any of this
+      }
+      ev.preventDefault();
+      var anim = this.previewAnim;
+
+      // Caught mid-flight: turn it around from where it stands, rather than
+      // starting the other direction over from an end it never reached.
+      if (anim && anim.playState === 'running') {
+        anim.reverse();
+        this.$preview.toggleClass('closing', anim.playbackRate < 0);
+        return;
+      }
+      if (anim) {
+        // A finished close is still holding the pane at nothing; let it go
+        // before anything measures the pane it's holding.
+        anim.cancel();
+      }
+
+      if (this.$preview.prop('open')) {
+        // Shut at the end of the collapse rather than the start: the pane has to
+        // still be open for there to be anything left to collapse.
+        this.$preview.addClass('closing');
+        this.previewAnim = this.animatePreview(true);
+      } else {
+        this.$preview.prop('open', true);
+        this.previewAnim = this.animatePreview(false);
+      }
+    },
+
+    // One animation, written shut-to-open and played backwards to close, so a
+    // toggle landing mid-way through another only has to reverse it. The pane
+    // grows to the height it lays out at and no further: its rule, the gap above
+    // it and its own padding all hold still, so it opens out from under a header
+    // that stays where it is rather than everything stretching at once.
+    animatePreview: function (closing) {
+      var self = this;
+      var body = this.$previewBody[0];
+      var frames = [
+        { height: '0px', opacity: 0 },
+        {
+          // Measured now rather than left to `auto`, which can't be animated
+          // from: a fetched readme has no height that could be set in advance.
+          // The pane is border-box, so this is the whole of its height, padding
+          // and rule included.
+          height: body.getBoundingClientRect().height + 'px',
+          opacity: 1,
+        },
+      ];
+      // Off the scrollbar the pane would otherwise flash while it's short of the
+      // height its content needs.
+      body.style.overflow = 'hidden';
+      // Filled at both ends, so the frame between the last one and the pane
+      // actually shutting doesn't spring back to full height.
+      var anim = body.animate(frames, {
+        duration: 200,
+        easing: 'ease',
+        fill: 'both',
+      });
+      if (closing) {
+        anim.reverse(); // seeks to the open end and runs back from there
+      }
+      anim.addEventListener('finish', function () {
+        body.style.overflow = '';
+        if (anim.playbackRate < 0) {
+          self.$preview.removeClass('closing').prop('open', false);
+          return; // left filled, holding a pane that's no longer rendered
+        }
+        // Open, so the animation is dropped and the pane goes back to taking its
+        // height from its content — which changes under it as readmes load.
+        self.previewAnim = null;
+        anim.cancel();
+      });
+      anim.addEventListener('cancel', function () {
+        body.style.overflow = '';
+      });
+      return anim;
+    },
+
     onStartChange: function () {
       this.refreshEndBefore();
+      this.refreshWarning();
+      this.refreshPreview();
+    },
+
+    onEndChange: function () {
+      this.refreshWarning();
       this.refreshPreview();
     },
 
@@ -107,7 +265,11 @@
     // items. Swap in a renderer that keeps it, in Craft's own markup.
     showFilenameOnItem: function (selectize) {
       selectize.settings.render.item = function (data) {
-        var html = '<span>' + Craft.escapeHtml(data.text || '') + '</span>';
+        // Craft's own markup for an option's icon, which its dropdown renderer
+        // draws for itself — the mark is on the option either way, whether the
+        // template named it or the fetched list was handed it.
+        var html = data.icon ? '<span class="cp-icon puny">' + data.icon + '</span> ' : '';
+        html += '<span>' + Craft.escapeHtml(data.text || '') + '</span>';
         if (data.hint) {
           // En dash separator, as Craft's own hints use.
           html += '<span class="light">\u2013 ' + Craft.escapeHtml(data.hint) + '</span>';
@@ -186,11 +348,15 @@
     // is passed over for a value selectize already holds, which would leave the
     // stand-in label in place of the repository's own name and filename hint.
     addRepos: function (selectize, repos) {
+      var self = this;
       repos.forEach(function (repo) {
         var option = {
           value: repo.value,
           text: repo.label,
           hint: (repo.data && repo.data.hint) || '',
+          // Named in the template, where the server can resolve it; a fetched
+          // option is given the mark itself.
+          icon: self.settings.repoIcon || '',
         };
         if (selectize.options[option.value]) {
           selectize.updateOption(option.value, option);
@@ -245,6 +411,13 @@
         return;
       }
       this.loadedUrl = url;
+      // A range that outlived its headings outlives them in the readme it was
+      // saved against, and nowhere else — so it's dropped along with that
+      // readme, warning and all, before the new one's headings arrive.
+      this.missing = null;
+      this.refreshWarning();
+      // Nothing to ask after again until there's a readme chosen.
+      this.$refresh.toggleClass('hidden', !url);
 
       if (!url) {
         this.$range.addClass('hidden');
@@ -347,9 +520,13 @@
 
     // `exists` says whether the readme was reached at all, which is what tells
     // a readme with no headings apart from one that couldn't be loaded — both
-    // arrive here as an empty list.
-    populate: function (headings, exists) {
+    // arrive here as an empty list. `missing` is the range's own headings that
+    // this readme hasn't got, and is only ever given for a readme the field was
+    // already on: the range doesn't follow an editor to a readme they've just
+    // picked, so neither does anything said about it.
+    populate: function (headings, exists, missing) {
       this.headings = headings || [];
+      this.missing = missing || null;
       // A readme with no headings has no range to offer, so the menus leave the
       // field rather than sit there holding nothing but their placeholders, and
       // a note takes their place saying why.
@@ -361,14 +538,28 @@
             ? this.settings.noHeadingsText
             : this.settings.loadFailedText
       );
-      // Start From offers every heading, keeping the current choice if still valid.
+      // Start From offers every heading, keeping the current choice if still
+      // valid — or if it's one the readme has lost, which is kept on the end of
+      // the menu rather than dropped out from under the range it's half of.
+      var stale = this.staleOption('startFrom');
       var current = this.$startFrom.val();
-      var keep = this.headings.some(function (h) { return h.value === current; });
+      var keep =
+        this.headings.some(function (h) { return h.value === current; }) || !!stale;
       this.$startFrom
-        .html(this.optionsHtml(this.headings, this.settings.startPlaceholder))
+        .html(this.optionsHtml(this.headings, this.settings.startPlaceholder, stale))
         .val(keep ? current : '');
       // End Before is derived from Start From.
       this.refreshEndBefore();
+      this.refreshWarning();
+    },
+
+    // The heading a menu is set to that its readme no longer has, as the option
+    // standing in for it — or null once the editor has chosen another in its
+    // place, and for a range that was never broken to begin with.
+    staleOption: function (which) {
+      var option = this.missing && this.missing[which];
+      var $menu = which === 'startFrom' ? this.$startFrom : this.$endBefore;
+      return option && $menu.val() === option.value ? option : null;
     },
 
     // End Before only offers headings that come after the chosen Start From,
@@ -384,11 +575,35 @@
       }
       var allowed = this.headings.slice(startIndex + 1);
 
+      var stale = this.staleOption('endBefore');
       var current = this.$endBefore.val();
-      var keep = allowed.some(function (h) { return h.value === current; });
+      var keep = allowed.some(function (h) { return h.value === current; }) || !!stale;
       this.$endBefore
-        .html(this.optionsHtml(allowed, this.settings.endPlaceholder))
+        .html(this.optionsHtml(allowed, this.settings.endPlaceholder, stale))
         .val(keep ? current : '');
+    },
+
+    // The warning under the field, which stands only while a menu is still set
+    // to a heading its readme has lost. Worded here as well as in the template,
+    // so it keeps up as the editor answers it: choosing a heading in place of
+    // one of the two leaves it saying what's still true, and answering both
+    // takes it out of the field.
+    refreshWarning: function () {
+      if (!this.$warning.length) {
+        return;
+      }
+      var start = this.staleOption('startFrom');
+      var end = this.staleOption('endBefore');
+      var text = '';
+      if (start && end) {
+        text = this.settings.staleBothText;
+      } else if (start) {
+        text = this.settings.staleStartText;
+      } else if (end) {
+        text = this.settings.staleEndText;
+      }
+      this.$warningText.text(text);
+      this.$warning.toggleClass('hidden', !text);
     },
 
     // Fill the pane, or take it out of the field when there's nothing to fill it
@@ -406,7 +621,7 @@
       this.$note.text(text || '').toggleClass('hidden', !text);
     },
 
-    optionsHtml: function (headings, placeholder) {
+    optionsHtml: function (headings, placeholder, stale) {
       // The blank option doubles as the menu's placeholder, since these menus
       // have no visible label.
       var html = '<option value="">' + Craft.escapeHtml(placeholder || '') + '</option>';
@@ -422,6 +637,17 @@
           Craft.escapeHtml(h.label) +
           '</option>';
       });
+      // The heading the readme has lost goes on the end, out of the order it
+      // once had: it's the menu's own choice rather than one of the readme's,
+      // and it's marked as missing where the rest are named.
+      if (stale) {
+        html +=
+          '<option value="' +
+          Craft.escapeHtml(stale.value) +
+          '">' +
+          Craft.escapeHtml(stale.label) +
+          '</option>';
+      }
       return html;
     },
   });

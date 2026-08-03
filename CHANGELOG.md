@@ -2,18 +2,25 @@
 
 ## Unreleased
 
+### Added
+
+- A refresh button in the field, which fetches the chosen readme again on its own.
+- Scribe fields can be shown as a column in an element index, or on a card, where they read as `craft-dub (Requirements → Usage)`.
+
 ### Changed
 
-- **Start From** and **End Before** give way to a note when a readme has no headings, or couldn't be fetched. Any range already saved against it is left alone.
-- The preview pane stays out of the field for a readme that couldn't be fetched.
+- The field is drawn as one bordered card, with its three menus sharing a single row between them at any width.
+- The repository list is fetched when the readme menu is first opened, rather than on every page the field renders on.
 - The readme menu names a repository's readme file only when it isn't called `README.md`.
-- The readme menu fetches the repository list when it's first opened, rather than on every page the field renders on. Until it's opened, a saved readme is named by its repository alone.
+- **Start From** and **End Before** give way to a note when a readme has no headings, or couldn't be fetched. Any range already saved against it is left alone.
+- The preview pane is remembered open or closed for each instance of a field on the page, so one in a Matrix is remembered a block at a time.
 
 ### Fixed
 
+- A readme rewritten under a field took the saved range with it, without a word: the menus fell back to their placeholders and the next save cleared the range for good. Both are now held, and a warning under the field says which heading has gone.
 - A repository list that failed to build was held for six hours, emptying the readme menu until it expired. It's now held for two minutes.
 - The repository list arrived filtered down to a single entry, leaving the menu looking empty until you clicked away and back into it.
-- A preview pane left closed flashed open on page load. Panes closed before this update open once more, then remember as they did.
+- A preview pane left closed flashed open on page load.
 
 ## 1.0.0-beta.6 - 2026-07-29
 

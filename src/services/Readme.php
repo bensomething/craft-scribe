@@ -76,6 +76,9 @@ class Readme extends Component
     /** @var array<string, array{html: string, cards: string[]}|null> */
     private array $dataCache = [];
 
+    /** @var array<string, array<int, array{value: string, label: string, level: int}>|null> */
+    private array $headingCache = [];
+
     private function parser(): Parser
     {
         return $this->parser ??= new Parser();
@@ -146,6 +149,98 @@ class Readme extends Component
     public function exists(?string $source): bool
     {
         return $this->data($source) !== null;
+    }
+
+    /**
+     * A source's headings if they're already held, without going to GitHub for
+     * them — or null when nothing is. For callers that mustn't turn one page
+     * into a request per element: an element index draws a row apiece, and a
+     * summary in a column isn't worth an API call, let alone fifty.
+     *
+     * Kept for the request as well, since an index is apt to ask after the same
+     * repository the whole way down a column, and each ask is otherwise a fresh
+     * parse of the README it came from.
+     *
+     * @return array<int, array{value: string, label: string, level: int}>|null
+     */
+    public function cachedHeadings(?string $source): ?array
+    {
+        $key = (string)$source;
+        if (array_key_exists($key, $this->headingCache)) {
+            return $this->headingCache[$key];
+        }
+
+        // Whatever a fetch left behind, and nothing else. The ownership check
+        // that stands in front of one isn't repeated here: this reads what a
+        // checked fetch put in the cache rather than reaching for anything new.
+        if (array_key_exists($key, $this->dataCache)) {
+            $data = $this->dataCache[$key];
+        } else {
+            $repo = $this->parser()->normalizeRepo($source);
+            $data = $repo !== null ? Craft::$app->getCache()->get('scribe:readme:' . $repo) : false;
+        }
+
+        $html = is_array($data) ? ($data['html'] ?? '') : '';
+        return $this->headingCache[$key] = $html !== '' ? $this->parser()->headings($html) : null;
+    }
+
+    /**
+     * The ends of a saved range that the source has no heading for any more,
+     * each as the option its menu goes on showing it under — or null where the
+     * heading is still there.
+     *
+     * A README lives on GitHub, where it can be rewritten under a field that's
+     * already pointing into it, and a range left pointing at a heading that's
+     * gone renders the whole README in place of the section it was set to.
+     * Nothing is reported for a README that couldn't be reached: that comes back
+     * with no headings at all, which says nothing about whether these two are
+     * still in it.
+     *
+     * @return array{startFrom: array{value: string, label: string}|null, endBefore: array{value: string, label: string}|null}
+     */
+    public function missingHeadings(?string $source, ?string $startFrom, ?string $endBefore): array
+    {
+        $slugs = $this->exists($source) ? array_column($this->headings($source), 'value') : null;
+
+        $missing = static function(?string $slug) use ($slugs): ?array {
+            if ($slugs === null || ($slug ?? '') === '' || in_array($slug, $slugs, true)) {
+                return null;
+            }
+            return [
+                'value' => $slug,
+                // Named by the anchor it was saved as, since the heading's own
+                // text went out of the README with the heading — the field was
+                // never holding anything else to call it by.
+                'label' => Craft::t('scribe', '{heading} (missing)', ['heading' => $slug]),
+            ];
+        };
+
+        return [
+            'startFrom' => $missing($startFrom),
+            'endBefore' => $missing($endBefore),
+        ];
+    }
+
+    /**
+     * Drop everything held for one source, so the next ask goes back to GitHub
+     * for it. The repository list is left alone: it's the dearest thing here to
+     * rebuild, and it isn't what an editor is asking after when they refresh the
+     * readme they're looking at.
+     */
+    public function forget(?string $source): void
+    {
+        $repo = $this->parser()->normalizeRepo($source);
+        if ($repo === null) {
+            return;
+        }
+
+        $cache = Craft::$app->getCache();
+        $cache->delete('scribe:readme:' . $repo);
+        // The branch its README renders from, and whether it's ours to fetch at
+        // all — a repo made private, or renamed, is answered from here.
+        $cache->delete('scribe:meta:' . md5((string)$this->token()) . ':' . $repo);
+        // Held for the request as well, and this one has further to go in it.
+        unset($this->dataCache[(string)$source], $this->headingCache[(string)$source]);
     }
 
     /**

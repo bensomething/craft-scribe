@@ -1,25 +1,75 @@
-/* Query the field's own width (not the viewport), so it responds correctly
-   inside slideouts. */
+/* The field is one bordered card: the menus along its top row, the preview pane
+   opening out below them. Query the field's own width (not the viewport), so it
+   responds correctly inside slideouts. */
 .scribe {
+  /* The card's inset, the same on every side — everything placed against an
+     edge follows it, so the preview toggle and the pane's rule stay in step
+     with the menus. */
+  --scribe-pad: 4px;
+  /* And what sits between the menus, which is a pixel more: butted up any
+     closer they start to read as one control. */
+  --scribe-gap: 5px;
+  /* Well past Craft's --large-border-radius (5px), which read as square at this
+     size. */
+  --scribe-radius: 9px;
+  /* What each of the three menus is given, before any of them is squeezed. */
+  --scribe-menu: 11rem;
+  /* The room kept at the end of the row for the preview toggle parked over it,
+     which is a shade more than the toggle asks for — enough that the refresh
+     button pushed up against it clears its edge. */
+  --scribe-toggle: 6rem;
   container-type: inline-size;
+  position: relative;
+  padding: var(--scribe-pad);
+  border: 1px solid var(--hairline-color);
+  border-radius: var(--scribe-radius);
+  /* No surface of its own: the border is the whole of the card, so the field
+     sits on whatever it's put on — a pane, a Matrix block — rather than laying a
+     colour of its own over it. */
 }
 
+/* Menus sit the card's own padding apart, so the row reads as one group inset
+   evenly from the border. They keep that row at every width — narrow enough and
+   they share it out between them rather than wrapping out of it. */
 .scribe-field {
   display: flex;
-  flex-wrap: wrap;
+  /* Held to the one line at any width. Left to wrap, the menus would break onto
+     rows of their own long before they'd been squeezed at all: a line is broken
+     on the widths items ask for, not the ones they'd settle for. */
+  flex-wrap: nowrap;
   align-items: flex-start;
-  gap: 1rem;
+  gap: var(--scribe-gap);
 }
 
-/* One row: fixed repo, then Start From / End Before butted up against it, then
-   the spinner. The spinner leaves the layout entirely when idle, rather than
-   holding an empty slot and the row gap that comes with it. */
+/* Room at the end of the row for the preview toggle parked over it. Held to the
+   toggle's own width, and only while there's a toggle showing: the pane is left
+   out of the field entirely when Show Preview is off, and takes itself out again
+   for a readme there's nothing to preview. The refresh button ends the row
+   itself, so it needs no room kept for it. */
+.scribe:has(> .scribe-preview:not(.hidden)) > .scribe-field {
+  padding-right: var(--scribe-toggle);
+}
+
+/* One row at every width: readme, then Start From / End Before, then the
+   spinner. Each menu is given the same width and each gives the same back when
+   the row runs short of room, so the three stay level with each other rather
+   than one of them taking the squeeze — the shares work out from the widths
+   below, which is why the range is measured rather than left to its content.
+   The spinner leaves the layout entirely when idle, rather than holding an
+   empty slot and the row gap that comes with it. */
 .scribe-field > .scribe-repo {
-  flex: 0 0 13rem;
+  flex: 0 1 var(--scribe-menu);
+  /* Without this the menu is held at least as wide as the value inside it, which
+     doesn't wrap — so a long repo name pushed the column past the width it was
+     given and took the other two menus' room with it. The value is set up to
+     truncate; this is what lets it. */
+  min-width: 0;
 }
 .scribe-field > .spinner {
   display: none;
   flex: 0 0 24px;
+  /* Not one of the menus, so it keeps its distance from the one it trails. */
+  margin-left: 0.5rem;
   color: var(--medium-text-color);
 }
 .scribe-field > .spinner.spinning {
@@ -28,14 +78,24 @@
 .scribe-field > .scribe-range {
   display: flex;
   align-items: flex-start;
-  gap: 1rem;
+  /* Matched to the row it sits in, so the three menus are evenly spaced across
+     it rather than these two reading as a pair. */
+  gap: var(--scribe-gap);
+  /* The two menus and the gap between them, written out rather than left to the
+     content: a flex item that can shrink is only ever as wide as it needs to be,
+     so a readme whose headings are short words would have pulled this pair in
+     narrower than the readme menu beside it. */
+  flex: 0 1 calc(2 * var(--scribe-menu) + var(--scribe-gap));
+  min-width: 0;
 }
 /* Beat the display:flex above so .hidden actually hides the row. */
 .scribe-field > .scribe-range.hidden {
   display: none;
 }
+/* Half of whatever the pair is given, so the two are always the same width as
+   each other whatever their headings are called. */
 .scribe-field > .scribe-range > .scribe-col {
-  flex: 0 1 11rem;
+  flex: 1 1 0;
   min-width: 0;
 }
 
@@ -45,6 +105,12 @@
   display: flex;
   align-items: center;
   min-height: 34px;
+  /* Wraps rather than holding the row open at the width of its longest line,
+     which nothing is left to wrap out of the way of now. */
+  min-width: 0;
+  /* Prose rather than a control, so it keeps a readable distance from the menu
+     it stands beside rather than the menus' own hairline gap. */
+  margin-left: 0.5rem;
   /* Fainter than the control panel's lightest text: the note explains an empty
      row rather than saying anything the editor has to act on. */
   color: var(--light-text-color, #9aa5b1);
@@ -52,6 +118,15 @@
 }
 .scribe-field > .scribe-note.hidden {
   display: none;
+}
+
+/* Says the saved range points at headings the readme has lost. Sits under the
+   card in the control panel's own warning style, which carries everything but
+   the spacing: that comes from `.field > .warning`, and this one is inside the
+   input rather than in the slot Craft keeps for a field's own warnings — which
+   only a field layout's settings can fill. */
+.scribe-warning {
+  margin-top: 5px;
 }
 
 /* Repo (selectize): fill its column and truncate long names. Pin the control
@@ -84,18 +159,21 @@
   min-width: 0;
   max-width: 100%;
 }
-/* The selected value carries the filename too, so the truncating happens inside
-   it: the repo name gives way first and the filename stays whole. (Craft's own
-   .flex-nowrap sets flex-wrap: wrap, so nowrap is set here.) */
+/* The selected value carries the GitHub mark and the filename too, so the
+   truncating happens inside it: the repo name gives way first, and the two
+   either side of it stay whole. (Craft's own .flex-nowrap sets flex-wrap: wrap,
+   so nowrap is set here.) */
 .scribe-field .selectize-input > .item > .flex {
   min-width: 0;
   flex-wrap: nowrap;
 }
-.scribe-field .selectize-input > .item > .flex > span:first-child {
+/* The name, which is the one span Craft's label markup leaves unclassed. */
+.scribe-field .selectize-input > .item > .flex > span:not(.cp-icon, .light) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.scribe-field .selectize-input > .item > .flex > .cp-icon,
 .scribe-field .selectize-input > .item > .flex > .light {
   flex: 0 0 auto;
 }
@@ -121,63 +199,69 @@
   white-space: nowrap;
 }
 
-/* Two rows: repo goes full width, Start From / End Before split 50/50 below it. */
-@container (max-width: 37rem) {
-  .scribe-field > .scribe-repo {
-    flex-basis: 100%;
-  }
-  /* Fill the row rather than claim all of it, so the spinner stays alongside
-     End Before instead of wrapping to a line of its own. */
-  .scribe-field > .scribe-range {
-    flex: 1 1 0;
-  }
-  .scribe-field > .scribe-range > .scribe-col {
-    flex: 1 1 0;
-  }
+/* Fetches this readme again. Last on the row and pushed to the end of it by
+   everything spare, so it comes to rest against the room kept for the preview
+   toggle — which puts it just inside the toggle, with the divider between them
+   drawn on the toggle's own edge. */
+.scribe-field > .scribe-refresh {
+  flex: 0 0 auto;
+  margin-left: auto;
+  width: 30px;
+  /* A control's height, so it sits centred against the menus. */
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* A button of its own making rather than one of Craft's: it reads as part of
+     the card, like the preview toggle beside it. */
+  padding: 0;
+  border: 0;
+  background: none;
+  -webkit-appearance: none;
+  appearance: none;
+  border-radius: var(--small-border-radius, 3px);
+  color: var(--medium-text-color);
+  font-size: 14px;
 }
-
-/* Three rows: stack Start From and End Before full width too. */
-@container (max-width: 20rem) {
-  .scribe-field > .scribe-range {
-    flex-direction: column;
-  }
-  .scribe-field > .scribe-range > .scribe-col {
-    flex: 1 1 auto;
-  }
+.scribe-field > .scribe-refresh:hover {
+  color: var(--text-color);
+}
+/* Held while the fetch it started is still out. */
+.scribe-field > .scribe-refresh:disabled {
+  cursor: default;
+  opacity: 0.5;
 }
 
 /* Preview pane (Show Preview). Readable defaults for the fetched HTML, since the
-   site's own CSS isn't loaded in the CP. The surface is `--pane-bg` rather than
-   `--white`: Craft declares `--pane-bg: var(--white)`, so it's the same colour on a
-   stock CP, but `--white` is a fixed literal that a colour-mode plugin can't move,
-   which left the panel bright white under a dark control panel. */
-.scribe-preview {
-  margin-top: 1rem;
-  border: 1px solid var(--hairline-color);
-  border-radius: var(--large-border-radius, 5px);
-  background: var(--pane-bg, #fff);
-}
+   site's own CSS isn't loaded in the CP. The card around the whole field is the
+   pane's border too, so the pane itself carries none. */
 .scribe-preview.hidden {
   display: none;
 }
+
+/* The toggle rides at the end of the menu row, out of the flow — so a closed
+   pane takes up no room at all, and opening one doesn't move the toggle that
+   opened it. */
 .scribe-preview > summary {
+  position: absolute;
+  top: var(--scribe-pad);
+  right: var(--scribe-pad);
+  /* A control's height, so the toggle sits centred against the menus. */
+  height: 34px;
   display: flex;
   align-items: center;
   gap: 6px;
   cursor: pointer;
-  padding: 8px 12px;
-  font-weight: 600;
+  /* More of it after the label than before the caret: that side is up against
+     the card's border, where the menus have a whole gap's worth of room. */
+  padding: 0 9px 0 6px;
+  font-weight: 500;
   color: var(--medium-text-color);
+  white-space: nowrap;
   /* Prefixed too, for Safari before 17.4. */
   -webkit-user-select: none;
   user-select: none;
   list-style: none;
-  /* Held transparent while closed so the header keeps its height when the
-     open-state border below arrives. */
-  border-bottom: 1px solid transparent;
-}
-.scribe-preview[open] > summary {
-  border-bottom-color: var(--hairline-color);
 }
 
 /* Swap the native marker — whose glyph is a different width in each state — for
@@ -198,16 +282,101 @@
 .scribe-preview[open] > summary::before {
   transform: rotate(90deg);
 }
+/* The pane stays open for the length of its closing animation, so the caret is
+   turned back by hand — otherwise it waits, and snaps round once the pane has
+   already gone. */
+.scribe-preview.closing > summary::before {
+  transform: none;
+}
 @media (prefers-reduced-motion: reduce) {
   .scribe-preview > summary::before {
     transition: none;
   }
 }
+
+/* A rule between the toggle and the refresh button it's parked beside, and only
+   while there's a refresh button there to divide it from. Shorter than the two
+   controls, so it reads as a join rather than a second border inside the card.
+
+   Halfway between them, which has to be worked out: the toggle is as wide as its
+   label leaves it, and the room kept for it at the end of the row is a round
+   number that doesn't come out exactly the same. What's left over is that room
+   less the toggle's own width — the gap the refresh button ends at — and half of
+   it back from this edge lands in the middle. Both controls carry much the same
+   padding inside their edges, so the icons either side come out level with it. */
+.scribe:has(.scribe-refresh:not(.hidden)) > .scribe-preview > summary::after {
+  content: "";
+  position: absolute;
+  left: calc((100% - var(--scribe-toggle)) / 2);
+  top: 50%;
+  width: 1px;
+  height: 18px;
+  margin-top: -9px;
+  background: var(--hairline-color);
+}
+
+/* The body is only in the field while the pane is open, so it carries the rule
+   dividing the pane from the row above it, sitting the same distance below the
+   menus as they sit inside the border.
+
+   It reaches out over the card's padding on three sides, so the rule runs the
+   card's full width and the pane colour runs right into the border rather than
+   stopping short of it. Its corners are the card's, less the border they sit
+   inside. */
 .scribe-preview-body {
-  padding: 12px 16px;
+  border-top: 1px solid var(--hairline-color);
+  margin: var(--scribe-pad) calc(var(--scribe-pad) * -1)
+    calc(var(--scribe-pad) * -1);
+  border-radius: 0 0 calc(var(--scribe-radius) - 1px) calc(var(--scribe-radius) - 1px);
+  background: var(--pane-bg, #fff);
+  /* Measured from the card's border, since the pane reaches out over its side
+     padding — so the text is inset from the border rather than run up to it. */
+  padding: 12px;
+  /* So the height the pane is animated over is the whole of it. Left to
+     content-box, the padding would stand outside that height and hold the pane
+     open at both ends of the animation. */
+  box-sizing: border-box;
   max-height: 24rem;
   overflow: auto;
 }
+
+/* No room left to park the toggle beside the menus, so it goes back into the flow
+   as a header on the pane below them, and the row takes its width back. Kept
+   below the rules it overrides, since a container query carries no weight of its
+   own. */
+@container (max-width: 40rem) {
+  .scribe:has(> .scribe-preview:not(.hidden)) > .scribe-field {
+    padding-right: 0;
+  }
+  /* The toggle has left the row, so there's nothing up there to divide the
+     refresh button from — it ends the row on its own. */
+  .scribe:has(.scribe-refresh:not(.hidden)) > .scribe-preview > summary::after {
+    display: none;
+  }
+  /* With nothing parked at the end of it, the menus take the whole row rather
+     than leaving the space the toggle was holding. They grow in the shares they
+     were given — one part to the readme menu, two to the pair beside it — so
+     the three come out level, as they are at every other width. */
+  .scribe-field > .scribe-repo {
+    flex-grow: 1;
+  }
+  .scribe-field > .scribe-range {
+    flex-grow: 2;
+  }
+  .scribe-preview > summary {
+    position: static;
+    height: auto;
+    /* The card's own bottom padding falls under this one, so it comes off here:
+       the label keeps as much room beneath it as it has above. */
+    padding: 8px 6px calc(8px - var(--scribe-pad));
+  }
+  /* The toggle is the pane's own header now, so the rule under it closes up. */
+  .scribe-preview-body {
+    margin-top: 0;
+  }
+}
+
+
 /* The padding sets the gap under the header on its own — the fetched content
    leads with a heading or paragraph carrying a top margin of its own, which
    would otherwise stack on top of it. */
