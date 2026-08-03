@@ -29,9 +29,9 @@
     init: function (id, settings) {
       this.settings = settings;
       this.headings = settings.headings || [];
-      // The range's own headings, where the readme no longer has them. Held
-      // only while they're still the menus' choice, and only for the readme they
-      // were saved against.
+      // The range's own headings, where the readme no longer has them. Held only
+      // while they're still the menus' choice, and only for the readme they were
+      // saved against.
       this.missing = settings.missing || null;
       this.$url = $('#' + id + '-url');
       this.$startFrom = $('#' + id + '-startFrom');
@@ -39,8 +39,7 @@
       this.$range = this.$url.closest('.scribe-field').find('[data-scribe-range]');
       this.$note = this.$url.closest('.scribe-field').find('[data-scribe-note]');
       this.$spinner = this.$url.closest('.scribe-field').find('[data-scribe-spinner]');
-      // Beside the card rather than inside it, so it's reached from there rather
-      // than through it.
+      // Beside the card rather than inside it.
       this.$warning = this.$url.closest('.scribe').siblings('[data-scribe-warning]');
       this.$warningText = this.$warning.find('[data-scribe-warning-text]');
       this.$refresh = this.$url.closest('.scribe').find('[data-scribe-refresh]');
@@ -60,20 +59,17 @@
         this.showFilenameOnItem(selectize);
       });
 
-      // Render the heading menus from the server-provided headings. Nothing to
-      // render without them, and the markup has already put the note in their
-      // place — repopulating would only clear a saved range the field is still
-      // holding, which a readme that failed to load should get back.
+      // Render the heading menus from the server's headings. Nothing to render
+      // without them, and the markup has already put the note in their place.
       if (this.headings.length) {
         this.populate(this.headings, true, this.missing);
       }
     },
 
-    // Drop what Scribe is holding for this readme and fetch it again. A readme
-    // is written on GitHub, and the field would otherwise show what was last
-    // heard of it there — up to a day ago, on the default cache duration. Only
-    // this one readme is dropped: the repository list, which is far dearer to
-    // rebuild, isn't what's being asked after.
+    // Drop what Scribe is holding for this readme and fetch it again, for an
+    // editor who has just changed it on GitHub. Only this one readme goes: the
+    // repository list is far dearer to rebuild, and isn't what's being asked
+    // after.
     onRefresh: function () {
       var self = this;
       // The loaded readme, not the picker's live value, which briefly empties
@@ -89,8 +85,7 @@
         data: {
           url: url,
           // Sent so the answer can say which of them the refetched readme has
-          // lost — the reckoning a page render makes for itself, and a refresh
-          // is as likely a moment as any to turn one up.
+          // lost, which is the reckoning a page render makes for itself.
           startFrom: this.$startFrom.val(),
           endBefore: this.$endBefore.val(),
         },
@@ -100,8 +95,7 @@
           self.populate(data.headings || [], !!data.exists, data.missing);
         })
         .catch(function () {
-          // Nothing came back, so nothing changes: the field goes on showing the
-          // readme it was already showing.
+          // Nothing came back, so nothing changes.
         })
         .finally(function () {
           self.refreshing = false;
@@ -114,12 +108,11 @@
     },
 
     // Record the pane's open/closed state, under a key PHP built from this
-    // instance's own namespaced id, so a field sitting on the page more than
-    // once — in each block of a Matrix, say — is remembered a block at a time.
-    // Only recorded here: a cookie rather than local storage, so the field
-    // renders in the remembered state to begin with. Applying it from here meant
-    // a pane the editor had closed was painted open and then shut in front of
-    // them.
+    // instance's own namespaced id, so a field on the page more than once (in
+    // each block of a Matrix, say) is remembered a block at a time. Only
+    // recorded here: it's a cookie rather than local storage so the field
+    // renders in the remembered state to begin with, and applying it from here
+    // painted a closed pane open and then shut it in front of the editor.
     hookPreviewState: function () {
       if (!this.$preview.length || !this.settings.previewKey) {
         return;
@@ -139,11 +132,10 @@
       });
     },
 
-    // Open and close the pane on an animation of its own. A details element has
-    // none — only the newest browsers can transition one, and the CP runs in
-    // more than those — so the toggle's click is taken over: opening happens
-    // first and the pane grows into place, and closing runs that backwards and
-    // shuts the pane at the end of it.
+    // Open and close the pane on an animation of its own, since only the newest
+    // browsers can transition a details element and the CP runs in more than
+    // those. The toggle's click is taken over: opening happens first and the
+    // pane grows into place, closing runs that backwards and shuts it at the end.
     hookPreviewAnimation: function () {
       if (!this.$previewBody.length || !this.$previewBody[0].animate) {
         return;
@@ -166,8 +158,8 @@
         return;
       }
       if (anim) {
-        // A finished close is still holding the pane at nothing; let it go
-        // before anything measures the pane it's holding.
+        // A finished close is still holding the pane at nothing. Let it go
+        // before anything measures the pane.
         anim.cancel();
       }
 
@@ -183,10 +175,7 @@
     },
 
     // One animation, written shut-to-open and played backwards to close, so a
-    // toggle landing mid-way through another only has to reverse it. The pane
-    // grows to the height it lays out at and no further: its rule, the gap above
-    // it and its own padding all hold still, so it opens out from under a header
-    // that stays where it is rather than everything stretching at once.
+    // toggle landing mid-way through another only has to reverse it.
     animatePreview: function (closing) {
       var self = this;
       var body = this.$previewBody[0];
@@ -194,15 +183,13 @@
         { height: '0px', opacity: 0 },
         {
           // Measured now rather than left to `auto`, which can't be animated
-          // from: a fetched readme has no height that could be set in advance.
-          // The pane is border-box, so this is the whole of its height, padding
-          // and rule included.
+          // from. The pane is border-box, so this is the whole of its height.
           height: body.getBoundingClientRect().height + 'px',
           opacity: 1,
         },
       ];
-      // Off the scrollbar the pane would otherwise flash while it's short of the
-      // height its content needs.
+      // Off the scrollbar the pane would flash while short of its content's
+      // height.
       body.style.overflow = 'hidden';
       // Filled at both ends, so the frame between the last one and the pane
       // actually shutting doesn't spring back to full height.
@@ -221,7 +208,7 @@
           return; // left filled, holding a pane that's no longer rendered
         }
         // Open, so the animation is dropped and the pane goes back to taking its
-        // height from its content — which changes under it as readmes load.
+        // height from its content, which changes under it as readmes load.
         self.previewAnim = null;
         anim.cancel();
       });
@@ -261,13 +248,12 @@
     },
 
     // Craft renders the filename hint on dropdown options but not on the
-    // selected item — its label helper takes a showHint flag, passed false for
+    // selected item: its label helper takes a showHint flag, passed false for
     // items. Swap in a renderer that keeps it, in Craft's own markup.
     showFilenameOnItem: function (selectize) {
       selectize.settings.render.item = function (data) {
         // Craft's own markup for an option's icon, which its dropdown renderer
-        // draws for itself — the mark is on the option either way, whether the
-        // template named it or the fetched list was handed it.
+        // draws for itself.
         var html = data.icon ? '<span class="cp-icon puny">' + data.icon + '</span> ' : '';
         html += '<span>' + Craft.escapeHtml(data.text || '') + '</span>';
         if (data.hint) {
@@ -343,10 +329,10 @@
         });
     },
 
-    // Merge the fetched list into the menu. The saved value is already in it as
-    // a bare owner/repo path, so that one is updated rather than added — an add
-    // is passed over for a value selectize already holds, which would leave the
-    // stand-in label in place of the repository's own name and filename hint.
+    // Merge the fetched list into the menu. The saved value is already in it, so
+    // that one is updated rather than added: an add is passed over for a value
+    // selectize already holds, leaving the stand-in label in place of the
+    // repository's own name and filename hint.
     addRepos: function (selectize, repos) {
       var self = this;
       repos.forEach(function (repo) {
@@ -354,8 +340,8 @@
           value: repo.value,
           text: repo.label,
           hint: (repo.data && repo.data.hint) || '',
-          // Named in the template, where the server can resolve it; a fetched
-          // option is given the mark itself.
+          // The template names its icon and lets the server resolve it. A
+          // fetched option is given the mark itself.
           icon: self.settings.repoIcon || '',
         };
         if (selectize.options[option.value]) {
@@ -365,19 +351,18 @@
         }
       });
       // Redraw on the fetched list, opening the menu if the picker still holds
-      // focus — which it will, since the fetch was its own focus that started
-      // it. Passing false here doesn't leave an open menu alone: selectize
-      // closes it, which left the editor clicking a second time for the list
-      // they'd already asked for.
+      // focus, which it will, since the fetch was its own focus that started it.
+      // Passing false doesn't leave an open menu alone: selectize closes it,
+      // which left the editor clicking a second time for the list they'd asked
+      // for.
       //
       // Craft's select_on_focus plugin puts the selected repo's text in the
-      // search box on focus and stops selectize scoring against it — but only
+      // search box on focus and stops selectize scoring against it, but only
       // until the end of that tick, long before this list lands. Left alone,
-      // that untyped text is a live query by now, and would filter the list
-      // down to the one repo it names: the editor saw no list until they
-      // clicked away and back, which suspends scoring afresh. So suspend it
-      // again for this one redraw, exactly as the plugin does on focus, unless
-      // the editor has since typed a search that's theirs to be filtered by.
+      // that untyped text is a live query by now and would filter the list down
+      // to the one repo it names. So suspend scoring again for this one redraw,
+      // as the plugin does on focus, unless the editor has since typed a search
+      // that's theirs to be filtered by.
       var score = selectize.settings.score;
       if (!this.typed) {
         selectize.settings.score = function () {
@@ -401,9 +386,8 @@
     onChange: function () {
       var url = this.$url.val() || '';
       // Focusing the picker empties it (Craft's select_on_focus plugin, which
-      // puts the value back on blur), firing a change for a value the user
-      // hasn't touched. Neither half of that is a readme change, so don't tear
-      // the range and preview down and refetch them around a focus.
+      // puts the value back on blur), firing a change for a value the editor
+      // hasn't touched. Neither half of that is a readme change.
       if (!url && this.isPickerFocused()) {
         return;
       }
@@ -411,9 +395,8 @@
         return;
       }
       this.loadedUrl = url;
-      // A range that outlived its headings outlives them in the readme it was
-      // saved against, and nowhere else — so it's dropped along with that
-      // readme, warning and all, before the new one's headings arrive.
+      // A range outlives its headings in the readme it was saved against and
+      // nowhere else, so it goes with that readme, warning and all.
       this.missing = null;
       this.refreshWarning();
       // Nothing to ask after again until there's a readme chosen.
@@ -476,8 +459,7 @@
         this.$preview.addClass('hidden');
         return;
       }
-      // The pane isn't shown ahead of the fetch: whether there's anything to
-      // show is the fetch's answer to give, and un-hiding first would flash an
+      // The pane isn't shown ahead of the fetch: un-hiding first would flash an
       // empty pane in front of a readme that turns out to be unreachable.
       this.dropQueuedPreview();
       // Hold the spinner from the moment the fetch is queued, so it doesn't
@@ -518,18 +500,17 @@
       }
     },
 
-    // `exists` says whether the readme was reached at all, which is what tells
-    // a readme with no headings apart from one that couldn't be loaded — both
-    // arrive here as an empty list. `missing` is the range's own headings that
-    // this readme hasn't got, and is only ever given for a readme the field was
-    // already on: the range doesn't follow an editor to a readme they've just
-    // picked, so neither does anything said about it.
+    // `exists` tells a readme with no headings apart from one that couldn't be
+    // loaded, which both arrive here as an empty list. `missing` is the range's
+    // own headings that this readme hasn't got, and is only ever given for a
+    // readme the field was already on: a range doesn't follow an editor to a
+    // readme they've just picked, so neither does anything said about it.
     populate: function (headings, exists, missing) {
       this.headings = headings || [];
       this.missing = missing || null;
       // A readme with no headings has no range to offer, so the menus leave the
-      // field rather than sit there holding nothing but their placeholders, and
-      // a note takes their place saying why.
+      // field rather than hold nothing but their placeholders, and a note takes
+      // their place saying why.
       this.$range.toggleClass('hidden', !this.headings.length);
       this.setNote(
         this.headings.length
@@ -538,9 +519,8 @@
             ? this.settings.noHeadingsText
             : this.settings.loadFailedText
       );
-      // Start From offers every heading, keeping the current choice if still
-      // valid — or if it's one the readme has lost, which is kept on the end of
-      // the menu rather than dropped out from under the range it's half of.
+      // Start From offers every heading, keeping the current choice if it's
+      // still valid, or if it's one the readme has lost.
       var stale = this.staleOption('startFrom');
       var current = this.$startFrom.val();
       var keep =
@@ -554,8 +534,8 @@
     },
 
     // The heading a menu is set to that its readme no longer has, as the option
-    // standing in for it — or null once the editor has chosen another in its
-    // place, and for a range that was never broken to begin with.
+    // standing in for it. Null once the editor has chosen another in its place,
+    // and for a range that was never broken.
     staleOption: function (which) {
       var option = this.missing && this.missing[which];
       var $menu = which === 'startFrom' ? this.$startFrom : this.$endBefore;
@@ -584,10 +564,9 @@
     },
 
     // The warning under the field, which stands only while a menu is still set
-    // to a heading its readme has lost. Worded here as well as in the template,
-    // so it keeps up as the editor answers it: choosing a heading in place of
-    // one of the two leaves it saying what's still true, and answering both
-    // takes it out of the field.
+    // to a heading its readme has lost. Worded here as well as in the template
+    // so it keeps up as the editor answers it: choosing a heading for one of the
+    // two leaves it saying what's still true, answering both takes it away.
     refreshWarning: function () {
       if (!this.$warning.length) {
         return;
@@ -607,8 +586,8 @@
     },
 
     // Fill the pane, or take it out of the field when there's nothing to fill it
-    // with. Null html is a readme that couldn't be fetched — the note above says
-    // as much, so an empty pane under it would only repeat the point.
+    // with. Null html is a readme that couldn't be fetched, which the note above
+    // has already said.
     showPreview: function (html) {
       this.$preview.toggleClass('hidden', html === null || html === undefined);
       this.$previewBody.html(html || '');
@@ -638,8 +617,7 @@
           '</option>';
       });
       // The heading the readme has lost goes on the end, out of the order it
-      // once had: it's the menu's own choice rather than one of the readme's,
-      // and it's marked as missing where the rest are named.
+      // once had: it's the menu's own choice rather than one of the readme's.
       if (stale) {
         html +=
           '<option value="' +

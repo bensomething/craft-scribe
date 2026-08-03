@@ -19,9 +19,8 @@
         : 'Couldn’t load this readme'|t('scribe') %}
 {% endif %}
 
-{# What the warning under the field says, when the readme no longer has the
-   headings the saved range was set to. Worded here for the render and again in
-   the JS, which takes the warning over as the editor answers it. #}
+{# What the warning under the field says. Worded here for the render and again
+   in the JS, which takes it over as the editor answers it. #}
 {% set warning = '' %}
 {% if missing.startFrom and missing.endBefore %}
     {% set warning = 'Start From and End Before are set to headings this readme no longer has, so the whole of it renders.'|t('scribe') %}
@@ -32,19 +31,15 @@
 {% endif %}
 
 {# Readme menu options: the placeholder and the saved value, nothing more.
-   Building the repository list costs a GitHub request per hundred repos, and
-   the menu isn't read until it's opened — so the field renders on what it
-   already knows and the JS fills the rest in on first focus, replacing this
-   stand-in option with the repository's own name and readme filename. #}
+   Building the repository list costs a GitHub request per hundred repos and the
+   menu isn't read until it's opened, so the field renders on what it already
+   knows and the JS fills the rest in on first focus. #}
 {% set repoOptions = [{ label: 'Select a readme file…'|t('scribe'), value: '' }] %}
 {% if value.url %}
     {# Labelled with the repository's own name, which is what the fetched list
-       calls it — so the menu reads the same before and after it loads, rather
-       than rewriting itself under the editor as they open it. #}
-    {# Craft's selectize resolves a system icon's name for itself, the way a
-       dropdown field's own option icons are given. The list fetched over Ajax
-       can't be given a name, so the field hands its JS the same mark ready
-       drawn. #}
+       calls it, so the menu reads the same before and after it loads. Its icon
+       is named rather than drawn, since Craft's selectize resolves a system
+       icon's name for itself. #}
     {% set repoOptions = repoOptions|merge([{
         label: value.url|split('/')|last ?: value.url,
         value: value.url,
@@ -60,9 +55,9 @@
 {% endfor %}
 
 {# A heading that's gone from the readme is kept on the end of its own menu,
-   marked as missing, so the menu goes on showing what it was set to: dropped for
-   the placeholder, the range reads as one that was never set and the next save
-   clears it for good. #}
+   marked as missing, so the menu goes on showing what it was set to. Dropped
+   for the placeholder, the range reads as one that was never set, and the next
+   save clears it for good. #}
 {% set startOptions = missing.startFrom ? headingOptions|merge([missing.startFrom]) : headingOptions %}
 {% set endOptions = missing.endBefore ? headingOptions|merge([missing.endBefore]) : headingOptions %}
 
@@ -78,8 +73,8 @@
     <div class="scribe-repo">
         {% if isStatic %}
             {# Selectize hides the select it's given and replaces it on setup,
-               but a static render discards the JS that would do it — so the
-               menu has to be a plain one here. #}
+               but a static render discards the JS that would do it, so the menu
+               has to be a plain one here. #}
             {{ forms.select({
                 id: id ~ '-url',
                 name: name ~ '[url]',
@@ -125,18 +120,14 @@
     <div class="scribe-note{{ note ? '' : ' hidden' }}" role="status" data-scribe-note>{{ note }}</div>
 
     {# Only in the layout while a readme is being fetched, trailing whatever is
-       last on the row — End Before, the note that stands in for it, or the
-       readme picker while neither is showing. #}
+       last on the row: End Before, the note that stands in for it, or the readme
+       picker while neither is showing. #}
     <div class="spinner" role="status" aria-live="polite" aria-label="{{ 'Loading'|t('app') }}" data-scribe-spinner></div>
 
-    {# Fetches this one readme again, dropping what Scribe is holding for it. A
-       readme is written elsewhere, and the field would otherwise show what
-       GitHub said about it up to a day ago — this asks again without clearing
-       every readme in the site.
-
+    {# Fetches this one readme again, without clearing every readme in the site.
        Last on the row and pushed to the end of it, which lands it just inside
        the preview toggle parked beyond. Out of the field until there's a readme
-       for it to ask after, and out of a static render altogether. #}
+       to ask after, and out of a static render altogether. #}
     {% if not isStatic %}
         {% set refreshLabel = 'Refresh this readme'|t('scribe') %}
         <button type="button"
@@ -149,8 +140,7 @@
 </div>
 {% if showPreview %}
 {# Out of the field until there's something to preview: no readme chosen, or one
-   that couldn't be fetched — which the note above already accounts for, and
-   would leave nothing here but an empty pane. #}
+   that couldn't be fetched, which the note above has already accounted for. #}
 <details class="scribe-preview{{ not readmeExists ? ' hidden' }}" data-scribe-preview{% if readmeExists and previewOpen %} open{% endif %}>
     <summary>{{ 'Preview'|t('scribe') }}</summary>
     <div class="scribe-preview-body prose" data-scribe-preview-body>{{ previewHtml|raw }}</div>
@@ -159,10 +149,9 @@
 
 </div>
 
-{# Under the card rather than in it, where the control panel puts a field's own
-   warnings — the slot Craft keeps for one is filled from a field layout's
-   settings, so this is that markup written out here. A live region, since the JS
-   rewrites it as the editor answers it. #}
+{# Under the card, where the control panel puts a field's own warnings. Craft's
+   slot for one is filled from a field layout's settings, so this is that markup
+   written out here. A live region, since the JS rewrites it. #}
 <p class="warning has-icon scribe-warning{{ warning ? '' : ' hidden' }}" role="status" data-scribe-warning>
     <span class="icon" aria-hidden="true"></span>
     <span class="visually-hidden">{{ 'Warning:'|t('app') }} </span>

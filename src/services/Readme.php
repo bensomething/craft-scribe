@@ -51,7 +51,7 @@ class Readme extends Component
 
     /**
      * Who the token belongs to, who owns one repo, and the branch its README
-     * renders from — everything a page render needs before fetching.
+     * renders from: everything a page render needs before fetching.
      */
     private const REPO_META_QUERY = <<<'GRAPHQL'
     query($owner: String!, $name: String!) {
@@ -153,9 +153,9 @@ class Readme extends Component
 
     /**
      * A source's headings if they're already held, without going to GitHub for
-     * them — or null when nothing is. For callers that mustn't turn one page
-     * into a request per element: an element index draws a row apiece, and a
-     * summary in a column isn't worth an API call, let alone fifty.
+     * them, or null when nothing is. For callers that mustn't turn one page into
+     * a request per element: an element index draws a row apiece, and a summary
+     * in a column isn't worth an API call, let alone fifty.
      *
      * Kept for the request as well, since an index is apt to ask after the same
      * repository the whole way down a column, and each ask is otherwise a fresh
@@ -171,7 +171,7 @@ class Readme extends Component
         }
 
         // Whatever a fetch left behind, and nothing else. The ownership check
-        // that stands in front of one isn't repeated here: this reads what a
+        // that stands in front of one isn't repeated, since this reads what a
         // checked fetch put in the cache rather than reaching for anything new.
         if (array_key_exists($key, $this->dataCache)) {
             $data = $this->dataCache[$key];
@@ -189,12 +189,11 @@ class Readme extends Component
      * each as the option its menu goes on showing it under — or null where the
      * heading is still there.
      *
-     * A README lives on GitHub, where it can be rewritten under a field that's
-     * already pointing into it, and a range left pointing at a heading that's
-     * gone renders the whole README in place of the section it was set to.
-     * Nothing is reported for a README that couldn't be reached: that comes back
-     * with no headings at all, which says nothing about whether these two are
-     * still in it.
+     * A README lives on GitHub, where it can be rewritten under a field already
+     * pointing into it, and a range left pointing at a heading that's gone
+     * renders the whole README in place of the section. Nothing is reported for
+     * a README that couldn't be reached: that comes back with no headings at
+     * all, which says nothing about whether these two are still in it.
      *
      * @return array{startFrom: array{value: string, label: string}|null, endBefore: array{value: string, label: string}|null}
      */
@@ -209,8 +208,7 @@ class Readme extends Component
             return [
                 'value' => $slug,
                 // Named by the anchor it was saved as, since the heading's own
-                // text went out of the README with the heading — the field was
-                // never holding anything else to call it by.
+                // text went out of the README with the heading.
                 'label' => Craft::t('scribe', '{heading} (missing)', ['heading' => $slug]),
             ];
         };
@@ -237,7 +235,7 @@ class Readme extends Component
         $cache = Craft::$app->getCache();
         $cache->delete('scribe:readme:' . $repo);
         // The branch its README renders from, and whether it's ours to fetch at
-        // all — a repo made private, or renamed, is answered from here.
+        // all. A repo made private, or renamed, is answered from here.
         $cache->delete('scribe:meta:' . md5((string)$this->token()) . ':' . $repo);
         // Held for the request as well, and this one has further to go in it.
         unset($this->dataCache[(string)$source], $this->headingCache[(string)$source]);
@@ -284,9 +282,9 @@ class Readme extends Component
     /**
      * Repos with a README, one GraphQL request per 100. The REST list endpoint
      * doesn't report whether a repo has a README, and checking each one costs a
-     * request per repo — expensive enough that the field asks for this list over
-     * Ajax when its menu is opened, rather than on the page render. GraphQL
-     * returns each repo's root tree alongside it, so the check is free.
+     * request apiece, which is why the field asks for this list over Ajax when
+     * its menu is opened rather than on the page render. GraphQL returns each
+     * repo's root tree alongside it, so the check is free.
      *
      * Null if any request failed, so a list that came up short isn't taken for
      * an account with nothing in it. A part-built list is dropped with it: half

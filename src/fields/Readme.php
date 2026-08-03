@@ -89,9 +89,9 @@ class Readme extends Field implements PreviewableFieldInterface
 
     /**
      * Craft renders static fields (revisions, read-only elements) with the JS
-     * buffer discarded, so selectize never initialises — and since it's what
-     * replaces the select it hides on setup, the readme menu would render
-     * invisible. Fall back to a plain menu that stands on its own.
+     * buffer discarded, so selectize never initialises. Since it's what replaces
+     * the select it hides on setup, the readme menu would render invisible. Fall
+     * back to a plain menu that stands on its own.
      */
     public function getStaticHtml(mixed $value, ElementInterface $element): string
     {
@@ -106,17 +106,16 @@ class Readme extends Field implements PreviewableFieldInterface
 
         $id = $this->getInputId();
         // Keys the remembered open/closed state of the preview pane, on the
-        // input's namespaced id rather than the field's handle: a field can be
-        // on the page more than once — in each block of a Matrix, say — and each
-        // of those is opened and closed on its own.
+        // input's namespaced id rather than the field's handle: a field can be on
+        // the page more than once, and each of those is opened and closed on its
+        // own.
         $previewKey = 'scribe-preview-' . $view->namespaceInputId($id);
         $service = Plugin::getInstance()->getReadme();
         $headings = (!$value->isEmpty()) ? $service->headings($value->url) : [];
         // Only asked so the note standing in for the heading menus can say which
         // of the two empty cases it is. Free: the payload is already loaded.
         $readmeExists = !$value->isEmpty() && $service->exists($value->url);
-        // The range's own headings, where the readme it was saved against no
-        // longer has them.
+        // The range's own headings, where the readme no longer has them.
         $missing = $service->missingHeadings($value->url, $value->startFrom, $value->endBefore);
         $previewHtml = ($this->showPreview && !$value->isEmpty())
             ? $service->render($value->url, $value->startFrom, $value->endBefore, null, $this->hideImages)
@@ -136,14 +135,12 @@ class Readme extends Field implements PreviewableFieldInterface
                     'previewKey' => $previewKey,
                     'headings' => $headings,
                     'missing' => $missing,
-                    // The mark shown against every repository in the readme
-                    // menu, rendered here because only the server can turn a
-                    // system icon's name into one — the menu's saved option gets
-                    // it by name in the template, and the repositories fetched
-                    // over Ajax are given this.
+                    // The mark shown against every repository in the readme menu,
+                    // drawn here because only the server can turn a system icon's
+                    // name into one. The template names its own.
                     'repoIcon' => Cp::iconSvg('github'),
-                    // Placeholders for the heading menus' blank option, which stands
-                    // in for the labels the field doesn't show.
+                    // Placeholders for the heading menus' blank option, which
+                    // stands in for the labels the field doesn't show.
                     'startPlaceholder' => Craft::t('scribe', 'Start from…'),
                     'endPlaceholder' => Craft::t('scribe', 'End before…'),
                     // The note that stands in for those menus when there's no
@@ -152,7 +149,7 @@ class Readme extends Field implements PreviewableFieldInterface
                     'loadFailedText' => Craft::t('scribe', 'Couldn’t load this readme'),
                     // The warning under the field, in each of the three ways a
                     // saved range can outlive the headings it was set to. The
-                    // template words the one it renders with; these are for the
+                    // template words the one it renders with. These are for the
                     // JS, which takes the warning over as the editor answers it.
                     'staleStartText' => Craft::t('scribe', 'Start From is set to a heading this readme no longer has, so the whole of it renders.'),
                     'staleEndText' => Craft::t('scribe', 'End Before is set to a heading this readme no longer has, so the section runs to the end of it.'),
@@ -187,11 +184,9 @@ class Readme extends Field implements PreviewableFieldInterface
      */
     private function previewWasOpen(string $key): bool
     {
-        // Matched on the end of the name rather than rebuilt in full: Craft's
-        // JS helper prefixes whatever it's given with the system UID, joined by
-        // an underscore as of 5.10 and by a colon in earlier releases. One
-        // instance's key can't end another's: the marker in the middle of it
-        // would have to line up with the end of the other's namespace.
+        // Matched on the end of the name rather than rebuilt in full: Craft's JS
+        // helper prefixes whatever it's given with the system UID, joined by an
+        // underscore as of 5.10 and by a colon before that.
         foreach ($_COOKIE as $name => $value) {
             if (str_ends_with($name, $key)) {
                 return $value !== '0';
@@ -209,10 +204,9 @@ class Readme extends Field implements PreviewableFieldInterface
     }
 
     /**
-     * What the field amounts to in a column or on a card: the repository, and
-     * the range read off it — "craft-dub (Requirements → Usage)". Plain text
-     * rather than the readme itself, which is a page of prose and belongs
-     * nowhere near a table row.
+     * What the field amounts to in a column or on a card: the repository and the
+     * range read off it, "craft-dub (Requirements → Usage)". Plain text rather
+     * than the readme itself, which is a page of prose.
      */
     public function getPreviewHtml(mixed $value, ElementInterface $element): string
     {
@@ -220,9 +214,9 @@ class Readme extends Field implements PreviewableFieldInterface
     }
 
     /**
-     * Stands in for the field where there's no element to read one from — the
-     * card designer, say. Craft's own default hands back the value itself, which
-     * for this field is a whole rendered readme.
+     * Stands in for the field where there's no element to read one from, such as
+     * the card designer. Craft's own default hands back the value itself, which
+     * here is a whole rendered readme.
      */
     public function previewPlaceholderHtml(mixed $value, ?ElementInterface $element): string
     {
@@ -239,11 +233,10 @@ class Readme extends Field implements PreviewableFieldInterface
         $parts = explode('/', $value->url);
         $repo = Html::encode(end($parts) ?: $value->url);
 
-        // Only what's already held: an index draws a row per element, and none
-        // of them is worth a trip to GitHub. Null where nothing is held, which
-        // leaves the headings named by the anchors they were saved as and
-        // nothing said about whether the readme still has them — an answer this
-        // can't reach for without becoming the request it's avoiding.
+        // Only what's already held: an index draws a row per element, and none of
+        // them is worth a trip to GitHub. Null where nothing is, which leaves
+        // both ends named by their anchors and nothing said about whether the
+        // readme still has them.
         $headings = Plugin::getInstance()->getReadme()->cachedHeadings($value->url);
 
         $start = $this->headingHtml($value->startFrom, $headings);
@@ -252,21 +245,20 @@ class Readme extends Field implements PreviewableFieldInterface
             return $repo;
         }
 
-        // The arrow belongs to the end it points at, so a range that runs on to
-        // the bottom of the readme goes without one — "Requirements" rather than
-        // "Requirements →". One that starts at the top keeps it, since "→ Usage"
-        // is what says the reading is up to Usage rather than from it.
+        // The arrow belongs to the end it points at, so a range running on to the
+        // bottom of the readme goes without one. One starting at the top keeps
+        // it, since "→ Usage" is what says the reading is up to Usage rather
+        // than from it.
         $range = $end !== '' ? trim("$start → $end") : $start;
 
-        // Fainter than the repository: the range qualifies it rather than
-        // standing alongside it.
+        // Fainter than the repository, which the range only qualifies.
         return $repo . ' ' . Html::tag('span', "($range)", ['class' => 'light']);
     }
 
     /**
-     * One end of the range, named by its heading — or by the anchor it was saved
-     * as, where the readme's headings aren't at hand to name it any better.
-     * Marked with an alert where they are and it isn't among them.
+     * One end of the range, named by its heading, or by the anchor it was saved
+     * as where the readme's headings aren't at hand. Marked with an alert where
+     * they are and it isn't among them.
      *
      * @param array<int, array{value: string, label: string, level: int}>|null $headings
      */
@@ -281,12 +273,11 @@ class Readme extends Field implements PreviewableFieldInterface
             return Html::encode($labels[$slug]);
         }
 
-        // Nothing to name it by, so the anchor stands in — read back towards the
-        // heading it was made from, since that's how it was made: lowercased,
-        // with its spaces turned to hyphens. The capitals inside a heading are
-        // past recovering ("Getting started" for "Getting Started"), which is a
-        // fair trade against a column that reads in slugs every time Scribe's
-        // caches are cleared.
+        // Nothing to name it by, so the anchor stands in, read back the way it
+        // was made: lowercased, with its spaces turned to hyphens. Capitals
+        // inside a heading are past recovering ("Getting started" for "Getting
+        // Started"), which beats a column that reads in slugs every time
+        // Scribe's caches are cleared.
         $name = Html::encode(StringHelper::upperCaseFirst(str_replace('-', ' ', $slug)));
 
         if ($headings === null) {

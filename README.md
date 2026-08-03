@@ -22,22 +22,22 @@ php craft plugin/install scribe
 
 The `-beta` in the constraint is what lets Composer install it under a project's default `stable` minimum stability.
 
-## Setup
+## GitHub Token
 
 Scribe talks to the GitHub API, so it needs a token.
 
 1. Create a **fine-grained personal access token** (GitHub → Settings → Developer settings → [Fine-grained tokens](https://github.com/settings/personal-access-tokens)).
    - **Repository access:** All repositories owned by you.
-   - **Permissions:** Repository → **Contents: Read-only** (this includes Metadata: Read).
+   - **Permissions:** **Contents: Read-only** (this includes Metadata: Read).
 2. In **Settings → Plugins → Scribe**, paste the token into **GitHub Token**, or store it in an environment variable and reference it (e.g. `$GITHUB_TOKEN`).
 
-The field then lists the readme files in your own repositories (public **and** private) — repos without one are left out — and Scribe will only ever fetch repos owned by that token account.
+The field then lists the readme files in your own repositories, public **and** private. Repositories without one are left out, and Scribe will only ever fetch repositories owned by that token account.
 
 ## Usage
 
-Add a **Scribe** field to an entry type. When editing, choose a readme file — the menu lists each repository of yours that has one, with its filename alongside. The **Start From** / **End Before** menus then populate from that readme's headings (End Before only offers headings after Start From).
+Add a **Scribe** field to an entry type. When editing, choose a readme file. The menu lists each repository of yours that has one, naming the file itself only where it isn't called `README.md`. The **Start From** / **End Before** menus then populate from that readme's headings (End Before only offers headings after Start From).
 
-The field has two settings of its own. **Show Preview** renders the selected section right in the editor. **Hide Images** leaves images out of the rendered README, taking any link or paragraph they emptied with them — useful for dropping a badge row, and for private repositories, whose images your visitors can't load (GitHub serves them only to authenticated requests, so they'd show as broken).
+The field has two settings of its own. **Show Preview** renders the selected section right in the editor. **Hide Images** leaves images out of the rendered README, taking any link or paragraph they emptied with them. That's useful for dropping a badge row, and for private repositories, whose images your visitors can't load (GitHub serves them only to authenticated requests, so they'd show as broken).
 
 Render it in a template:
 
