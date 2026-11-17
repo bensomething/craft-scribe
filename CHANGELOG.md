@@ -1,5 +1,11 @@
 # Release Notes for Scribe
 
+## Unreleased
+
+### Added
+
+- `isPublic` on a field's value, for templates linking out only to repositories a reader can open. It costs no extra API calls, and answers false for anything Scribe couldn't reach.
+
 ## 1.0.0-beta.7 - 2026-08-03
 
 ### Added

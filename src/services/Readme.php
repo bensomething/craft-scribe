@@ -50,8 +50,9 @@ class Readme extends Component
     GRAPHQL;
 
     /**
-     * Who the token belongs to, who owns one repo, and the branch its README
-     * renders from: everything a page render needs before fetching.
+     * Who the token belongs to, who owns one repo, the branch its README renders
+     * from and whether anyone can see it: everything a page render needs before
+     * fetching.
      */
     private const REPO_META_QUERY = <<<'GRAPHQL'
     query($owner: String!, $name: String!) {
@@ -59,6 +60,7 @@ class Readme extends Component
       repository(owner: $owner, name: $name) {
         owner { login }
         defaultBranchRef { name }
+        isPrivate
       }
     }
     GRAPHQL;
@@ -152,6 +154,18 @@ class Readme extends Component
     }
 
     /**
+     * Whether anyone can see the source repository, for templates deciding
+     * whether to link out to it. False for a private repo, and false for one
+     * that couldn't be reached at all: nothing is published on a guess.
+     */
+    public function isPublic(?string $source): bool
+    {
+        $repo = $this->parser()->normalizeRepo($source);
+
+        return $repo !== null && $this->repoMeta($repo)['public'];
+    }
+
+    /**
      * A source's headings if they're already held, without going to GitHub for
      * them, or null when nothing is. For callers that mustn't turn one page into
      * a request per element: an element index draws a row apiece, and a summary
@@ -234,9 +248,10 @@ class Readme extends Component
 
         $cache = Craft::$app->getCache();
         $cache->delete('scribe:readme:' . $repo);
-        // The branch its README renders from, and whether it's ours to fetch at
-        // all. A repo made private, or renamed, is answered from here.
-        $cache->delete('scribe:meta:' . md5((string)$this->token()) . ':' . $repo);
+        // The branch its README renders from, whether it's ours to fetch at all,
+        // and whether anyone can see it. A repo made private, or renamed, is
+        // answered from here.
+        $cache->delete($this->metaCacheKey($repo));
         // Held for the request as well, and this one has further to go in it.
         unset($this->dataCache[(string)$source], $this->headingCache[(string)$source]);
     }
@@ -449,17 +464,17 @@ class Readme extends Component
 
     /**
      * What rendering needs to know about a repo, cached: whether the token
-     * account owns it (only those may be fetched) and the branch GitHub
-     * rendered its README from, so relative asset URLs resolve. One request
-     * answers both, and it stays clear of the repo list — a page render should
-     * never wait on that.
+     * account owns it (only those may be fetched), the branch GitHub rendered
+     * its README from so relative asset URLs resolve, and whether anyone can see
+     * it. One request answers all three, and it stays clear of the repo list,
+     * which a page render should never wait on.
      *
-     * @return array{owned: bool, branch: string}
+     * @return array{owned: bool, branch: string, public: bool}
      */
     private function repoMeta(string $repo): array
     {
         $cache = Craft::$app->getCache();
-        $cacheKey = 'scribe:meta:' . md5((string)$this->token()) . ':' . $repo;
+        $cacheKey = $this->metaCacheKey($repo);
 
         $meta = $cache->get($cacheKey);
         if ($meta === false) {
@@ -478,11 +493,24 @@ class Readme extends Component
     }
 
     /**
-     * @return array{owned: bool, branch: string}
+     * Keyed on the token as well as the repo, since both answers are the token
+     * account's own. Versioned, so an entry cached under an older shape is
+     * passed over rather than served short of what it now carries.
+     */
+    private function metaCacheKey(string $repo): string
+    {
+        return 'scribe:meta:2:' . md5((string)$this->token()) . ':' . $repo;
+    }
+
+    /**
+     * @return array{owned: bool, branch: string, public: bool}
      */
     private function fetchRepoMeta(string $repo): array
     {
-        $unknown = ['owned' => false, 'branch' => 'main'];
+        // Nothing is taken for public that GitHub hasn't said is: a repo Scribe
+        // can't reach is one it can't vouch for, and a link published on that
+        // footing is the one mistake here worth avoiding.
+        $unknown = ['owned' => false, 'branch' => 'main', 'public' => false];
         if (!$this->token()) {
             return $unknown;
         }
@@ -513,6 +541,9 @@ class Readme extends Component
             return [
                 'owned' => $viewer !== '' && $viewer === $ownedBy,
                 'branch' => $repository['defaultBranchRef']['name'] ?? 'main',
+                // Read the way round GitHub answers it, and taken as private
+                // where the answer is missing.
+                'public' => isset($repository['isPrivate']) && !$repository['isPrivate'],
             ];
         } catch (\Throwable $e) {
             Craft::warning("Scribe repo lookup failed for {$repo}: " . $e->getMessage(), __METHOD__);

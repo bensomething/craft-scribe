@@ -57,6 +57,16 @@ class ReadmeValue extends Model
         return $this->isEmpty() ? [] : Plugin::getInstance()->getReadme()->headings($this->url);
     }
 
+    /**
+     * Whether anyone can see the source repository, for deciding whether to link
+     * out to it. False for a private repository, and false for one that couldn't
+     * be reached, so a link is only ever published on a confirmed answer.
+     */
+    public function isPublic(): bool
+    {
+        return !$this->isEmpty() && Plugin::getInstance()->getReadme()->isPublic($this->url);
+    }
+
     public function __toString(): string
     {
         return (string)($this->render() ?? '');

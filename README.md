@@ -48,14 +48,22 @@ Render it in a template:
 {# Drop a leading heading that duplicates the page title #}
 {{ entry.myField.render(entry.title) }}
 
-{# Raw values #}
+{# Raw values. `url` is the "owner/repo" the field saved, not a link, and the
+   other two are heading anchors #}
 {{ entry.myField.url }}
 {{ entry.myField.startFrom }}
 {{ entry.myField.endBefore }}
 
 {# All of the source's headings: [{ value, label, level }] #}
 {% for h in entry.myField.headings %}{{ h.label }}{% endfor %}
+
+{# Link out only where the repository is one your readers can open #}
+{% if entry.myField.isPublic %}
+    <a href="https://github.com/{{ entry.myField.url }}">View on GitHub</a>
+{% endif %}
 ```
+
+`isPublic` answers false for a private repository and false for one Scribe couldn't reach, so a link is only ever shown on an answer GitHub gave.
 
 `render()` returns GitHub-rendered HTML with repo-relative image/link URLs absolutized. Code blocks are emitted as a minimal `<pre><code class="language-…">` by default. Point the **Code Block Template** setting at a site template (given `code` and `language`) to use your own themed markup.
 
